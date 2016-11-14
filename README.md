@@ -4,7 +4,7 @@ Tools for data analysis on GC-MS datafiles
 
 ## Prerequisites
 
-Python v2.x
+Python v3.x
 
 
 ## convert.py: convert AMDIS files to a NIST MS SEARCH file
