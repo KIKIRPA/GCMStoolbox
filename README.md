@@ -7,7 +7,7 @@ Tools for data analysis on GC-MS datafiles
 Python v2.x
 
 
-## convert.py: convert AMDIS files (*.msl, *.csl, *.isl) to a NIST MS SEARCH file (*.msp)
+## convert.py: convert AMDIS files to a NIST MS SEARCH file
 
 ```
  ********************************************************************************
