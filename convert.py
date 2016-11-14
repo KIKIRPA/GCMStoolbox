@@ -13,7 +13,7 @@ from optparse import OptionParser, OptionGroup
 def main():
   print("\n ********************************************************************************")
   print(  " * GCMStoolbox - a set of tools for GC-MS data analysis                         *")
-  print(  " *   Author:  Wim Fremout / Royal Institute for Cultural Heritage (12 Nov 2016) *")
+  print(  " *   Author:  Wim Fremout / Royal Institute for Cultural Heritage (14 Nov 2016) *")
   print(  " *   Licence: GNU GPL version 3.0                                               *")
   print(  " *                                                                              *")
   print(  " * CONVERT:                                                                     *")
@@ -29,7 +29,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] INFILES"
-  parser = OptionParser(usage, version="%prog 0.1")
+  parser = OptionParser(usage, version="%prog 0.2")
   parser.add_option("-v", "--verbose", help="Be very verbose", action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile", help="output file name", action="store", dest="outfile", type="string")
   parser.add_option("-a", "--append", help="append to output file", action="store_true", dest="append",  default=False)
@@ -165,7 +165,7 @@ def readspectrum(fh, i, verbose = False):
           if parts[0] == "Nist#": parts[0] = "NIST#"
           if parts[0] == "Db#":   parts[0] = "DB#"
           if parts[0] == "Ri":    parts[0] = "RI"
-          if parts[0] == "RT":    parts[0] = "RT"
+          if parts[0] == "Rt":    parts[0] = "RT"
           if parts[0] == "Mw":    parts[0] = "MW"
           if parts[0] == "Exactmass": parts[0] = "ExactMass"
           spectrum[parts[0]] = parts[1].strip()
@@ -242,10 +242,10 @@ def elincize(sp, inFile, separator = "-", verbose = False):
   sp['Aging']        = parts[3][:-1] + " days"
   sp['Color']        = "black" if parts[3][-1:].upper == "B" else "unpigmented"
   sp['Sample descr'] = parts[4]
-  sp['Py prog']      = parts[6]
+  sp['Py Prog']      = parts[6]
   
   #rebuild existing fields
-  sp['Name']   = "S" + sp['DB#'] + " RI=" + sp['RI'] + " " + sp['Sample Code'] + "-" + parts[3] + "-" + sp['Py prog']
+  sp['Name']   = "S" + sp['DB#'] + " RI=" + sp['RI'] + " " + sp['Sample Code'] + "-" + parts[3] + "-" + sp['Py Prog']
   sp['Source'] = os.path.basename(inFile)
     
   return sp
