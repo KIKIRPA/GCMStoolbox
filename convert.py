@@ -2,24 +2,21 @@
 # -*- coding: utf-8 -*-
 
 import sys
-#import math
-
 import os
-
 from glob import glob
 from optparse import OptionParser, OptionGroup
 
 
 def main():
-  print("\n ********************************************************************************")
-  print(  " * GCMStoolbox - a set of tools for GC-MS data analysis                         *")
-  print(  " *   Author:  Wim Fremout / Royal Institute for Cultural Heritage (14 Nov 2016) *")
-  print(  " *   Licence: GNU GPL version 3.0                                               *")
-  print(  " *                                                                              *")
-  print(  " * CONVERT:                                                                     *")
-  print(  " *   convert AMDIS files (*.msl, *.csl, *.isl) to a NIST MS SEARCH file (*.msp) *")
-  print(  " *                                                                              *")
-  print(  " ********************************************************************************\n")
+  print("\n*******************************************************************************")
+  print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (24 Nov 2016) *")
+  print(  "*   Licence: GNU GPL version 3.0                                              *")
+  print(  "*                                                                             *")
+  print(  "* CONVERT:                                                                    *")
+  print(  "*   convert AMDIS files (.msl, .csl, .isl) to a NIST MS SEARCH file (.msp)    *")
+  print(  "*                                                                             *")
+  print(  "*******************************************************************************\n")
 
   shortdescr = ("Converts INFILES MSP file format. Multiple INFILES can be supplied by using\n"
                 "wildcards (?,*) and will be converted into one single MSP file. If no OUTFILE is\n"
@@ -29,7 +26,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] INFILES"
-  parser = OptionParser(usage, version="%prog 0.2")
+  parser = OptionParser(usage, version="%prog 0.3")
   parser.add_option("-v", "--verbose", help="Be very verbose", action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile", help="output file name", action="store", dest="outfile", type="string")
   parser.add_option("-a", "--append", help="append to output file", action="store_true", dest="append",  default=False)
@@ -237,16 +234,15 @@ def elincize(sp, inFile, separator = "-", verbose = False):
     print("      ! ELinCize failed: not enough parts in " + base + "\n")
     exit()
   
-  #extra fields
-  sp['Sample Code']  = parts[1] + "-" + parts[2]
-  sp['Aging']        = parts[3][:-1] + " days"
-  sp['Color']        = "black" if parts[3][-1:].upper == "B" else "unpigmented"
-  sp['Sample descr'] = parts[4]
-  sp['Py Prog']      = parts[6]
-  
   #rebuild existing fields
-  sp['Name']   = "S" + sp['DB#'] + " RI=" + sp['RI'] + " " + sp['Sample Code'] + "-" + parts[3] + "-" + sp['Py Prog']
-  sp['Source'] = os.path.basename(inFile)
+  sp['Name']     = "S" + sp['DB#'] + " RI=" + sp['RI'] + " " + sp['Sample Code'] + "-" + parts[3] + "-" + sp['Py Prog']
+  sp['Source']   = os.path.basename(inFile)
+  sp['Comments'] = ('Sample="' + parts[0] + '-' + parts[1] + '-' + parts[2] + '" '
+                     + 'Aging="' + parts[3][:-1] + ' days" '
+                     + 'Color="' + ("black" if parts[3][-1:].upper() == "B" else "unpigmented") + '" '
+                     + 'Description="' + parts[4] + '" '
+                     + 'PyTemp="' + parts[6] + '" '
+                    )
     
   return sp
 
