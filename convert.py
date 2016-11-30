@@ -10,7 +10,7 @@ from optparse import OptionParser, OptionGroup
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (24 Nov 2016) *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (30 Nov 2016) *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* CONVERT:                                                                    *")
@@ -26,7 +26,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] INFILES"
-  parser = OptionParser(usage, version="%prog 0.3")
+  parser = OptionParser(usage, version="%prog 0.4")
   parser.add_option("-v", "--verbose", help="Be very verbose", action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile", help="output file name", action="store", dest="outfile", type="string")
   parser.add_option("-a", "--append", help="append to output file", action="store_true", dest="append",  default=False)
@@ -235,7 +235,7 @@ def elincize(sp, inFile, separator = "-", verbose = False):
     exit()
   
   #rebuild existing fields
-  sp['Name']     = "S" + sp['DB#'] + " RI=" + sp['RI'] + " " + sp['Sample Code'] + "-" + parts[3] + "-" + sp['Py Prog']
+  sp['Name']     = "S" + sp['DB#'] + " RI=" + sp['RI'] + " " + parts[1] + "-" + parts[2] + "-" + parts[3] + "-" + parts[6]
   sp['Source']   = os.path.basename(inFile)
   sp['Comments'] = ('Sample="' + parts[0] + '-' + parts[1] + '-' + parts[2] + '" '
                      + 'Aging="' + parts[3][:-1] + ' days" '
