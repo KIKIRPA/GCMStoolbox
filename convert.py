@@ -238,6 +238,7 @@ def elincize(sp, inFile, separator = "-", verbose = False):
   sp['Name']     = "S" + sp['DB#'] + " RI=" + sp['RI'] + " " + parts[1] + "-" + parts[2] + "-" + parts[3] + "-" + parts[6]
   sp['Source']   = os.path.basename(inFile)
   sp['Comments'] = ('Sample="' + parts[0] + '-' + parts[1] + '-' + parts[2] + '" '
+                     + 'RI="' + sp['RI'] + '" RT=' + sp['RT'] + '" '
                      + 'Aging="' + parts[3][:-1] + ' days" '
                      + 'Color="' + ("black" if parts[3][-1:].upper() == "B" else "unpigmented") + '" '
                      + 'Description="' + parts[4] + '" '
