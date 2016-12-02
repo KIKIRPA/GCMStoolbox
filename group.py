@@ -33,14 +33,15 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] INFILE"
-  parser = OptionParser(usage, version="%prog 0.2.1")
-  parser.add_option("-v", "--verbose", help="Be very verbose",  action="store_true", dest="verbose", default=False)
-  parser.add_option("-o", "--outfile", help="Output file name", action="store",      dest="outfile", type="string")
-  parser.add_option("-r", "--ri",      help="Apply RI window (default [0]: no RI filter)",  action="store", dest="ri", type="float", default=0)
-  parser.add_option("-D", "--discard", help="Discard hits without RI",  action="store_true", dest="discard", default=False)
-  parser.add_option("-m", "--match",   help="Apply RI window (default [0]: no RI filter)", action="store", dest="minmf", type="int", default=0)
-  parser.add_option("-n", "--reverse", help="Apply RI window (default [0]: no RI filter)", action="store", dest="minrmf", type="int", default=0)
-  parser.add_option("-Y", "--merge",   help="Merge all overlapping groups into a single component", action="store_true", dest="merge", default=False)
+  parser = OptionParser(usage, version="%prog 0.3")
+  parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
+  parser.add_option("-o", "--outfile",  help="Output file name", action="store",      dest="outfile", type="string")
+  parser.add_option("-r", "--riwindow", help="Apply RI window (default [0]: no RI filter)",  action="store", dest="riwindow", type="float", default=0)
+  parser.add_option("-R", "--rifactor", help="Apply a factor to make the window dependent on the RI (window = [riwindow] + [rifactor] * RI)",  action="store", dest="rifactor", type="float", default=0)
+  parser.add_option("-D", "--discard",  help="Discard hits without RI",  action="store_true", dest="discard", default=False)
+  parser.add_option("-m", "--match",    help="Apply RI window (default [0]: no RI filter)", action="store", dest="minmf", type="int", default=0)
+  parser.add_option("-n", "--reverse",  help="Apply RI window (default [0]: no RI filter)", action="store", dest="minrmf", type="int", default=0)
+  parser.add_option("-Y", "--merge",    help="Merge all overlapping groups into a single component", action="store_true", dest="merge", default=False)
   (options, args) = parser.parse_args()
 
   ### ARGUMENTS
@@ -75,7 +76,7 @@ def main():
     outFile = "groups.json"
 
   # read mspepsearch results and create the spectra dictionary (couples of "spectrum name : group number") --> spectra dict
-  readmspepsearch(inFile, options.ri, options.discard, options.minmf, options.minrmf, options.verbose)
+  readmspepsearch(inFile, options.riwindow, options.rifactor, options.discard, options.minmf, options.minrmf, options.verbose)
   # find groups --> groups dict
   groupByComponent(options.verbose)
   # merge groups that may be the same component (non-crosslinked matches)
@@ -103,7 +104,7 @@ def main():
   
 
 
-def readmspepsearch(inFile, riwindow = 0, discard = False, minMF = 0, minRMF = 0, verbose = False):
+def readmspepsearch(inFile, riwindow = 0, rifactor = 0, discard = False, minMF = 0, minRMF = 0, verbose = False):
   ### ITERATE THROUGH INFILE
   # and generate a dictionary of spectra
   print("\nProcessing file: " + inFile)
@@ -116,7 +117,10 @@ def readmspepsearch(inFile, riwindow = 0, discard = False, minMF = 0, minRMF = 0
       if line.casefold().startswith('unknown'):
         # first process the previous hits list 
         if len(hits) > 0:
-          if verbose: print(" - Unknown: " + unknown)
+          if verbose: 
+            if riwindow > 0: msg = " (RI window: " + str(round(w,2)) + ")"
+            else:            msg = ""
+            print(" - Unknown: " + unknown + msg)
           processHits(hits, verbose)
         
         # reinit
@@ -129,6 +133,7 @@ def readmspepsearch(inFile, riwindow = 0, discard = False, minMF = 0, minRMF = 0
         
         if riwindow > 0:
           unknownRI = extractRI(unknown)
+          w = riwindow + (rifactor * unknownRI)
         else:
           unknownRI = 0
       
@@ -148,7 +153,7 @@ def readmspepsearch(inFile, riwindow = 0, discard = False, minMF = 0, minRMF = 0
         hitRMF = int(hitRMF.replace("RMF: ", "").strip())
         
         # selection based on RIwindow, minMF, minRMF 
-        if (riwindow > 0) and (unknownRI > 0) and (hitRI > 0) and (unknownRI - abs(riwindow / 2) <= hitRI <= unknownRI + abs(riwindow / 2)):
+        if (riwindow > 0) and (unknownRI > 0) and (hitRI > 0) and (unknownRI - abs(w / 2) <= hitRI <= unknownRI + abs(w / 2)):
           # RIwindow is given and both RI's are present: accept hit when RI falls within the window
           accept = True
         elif (riwindow > 0) and (not discard) and ((unknownRI == 0) or (hitRI == 0)):
@@ -240,7 +245,7 @@ def groupByComponent(verbose = False):
           groups[value]["minRI"] = ri
         if (groups[value]["maxRI"] == 0) or (groups[value]["maxRI"] < ri):
           groups[value]["maxRI"] = ri
-        groups[value]["deltaRI"] = groups[value]["maxRI"] - groups[value]["minRI"]
+        groups[value]["deltaRI"] = round(groups[value]["maxRI"] - groups[value]["minRI"], 2)
   
 
 
@@ -300,7 +305,7 @@ def mergeGroups(verbose):
   for key in tasklist:
     doubleset = doubles[key]
     doubleset.discard(key)
-    if verbose: print(" - " + str(key) + " <= " + ", ".join(doubleset))
+    if verbose: print(" - " + str(key) + " <= " + ", ".join(str(x) for x in doubleset))
     for doubleitem in doubleset:
       if doubleitem in groups:
         #take (and remove) the double out of the groups dict
