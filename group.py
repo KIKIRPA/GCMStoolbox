@@ -9,13 +9,15 @@ import json
 
 #globals
 spectra = {}  #dictionary of all spectra with the groups to which they belong
+groups = {}   #dictionary of groups
+doubles = {}  #dictionary of groups of possibly the same component
 i = 1         #group or component counter
 j = 1         #spectra counter
 
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (28 Nov 2016) *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (2 Dec 2016)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* GROUP:                                                                      *")
@@ -31,13 +33,14 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] INFILE"
-  parser = OptionParser(usage, version="%prog 0.1")
+  parser = OptionParser(usage, version="%prog 0.2")
   parser.add_option("-v", "--verbose", help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile", help="Output file name", action="store",      dest="outfile", type="string")
   parser.add_option("-r", "--ri",      help="Apply RI window (default [0]: no RI filter)",  action="store", dest="ri", type="float", default=0)
-  parser.add_option("-R", help="Discard hits without RI",  action="store_true", dest="discard", default=False)
-  parser.add_option("-m", "--match", help="Apply RI window (default [0]: no RI filter)", action="store", dest="minmf", type="int", default=0)
+  parser.add_option("-D", "--discard", help="Discard hits without RI",  action="store_true", dest="discard", default=False)
+  parser.add_option("-m", "--match",   help="Apply RI window (default [0]: no RI filter)", action="store", dest="minmf", type="int", default=0)
   parser.add_option("-n", "--reverse", help="Apply RI window (default [0]: no RI filter)", action="store", dest="minrmf", type="int", default=0)
+  parser.add_option("-Y", "--merge",   help="Merge all overlapping groups into a single component", action="store_true", dest="merge", default=False)
   (options, args) = parser.parse_args()
 
   ### ARGUMENTS
@@ -71,18 +74,32 @@ def main():
   else:
     outFile = "groups.json"
 
-  # read mspepsearch results and create the spectra dictionary (couples of "spectrum name : group number")
-  #global spectra
+  # read mspepsearch results and create the spectra dictionary (couples of "spectrum name : group number") --> spectra dict
   readmspepsearch(inFile, options.ri, options.discard, options.minmf, options.minrmf, options.verbose)
-  
-  print("Number of mass spectra: " + str(j - 1))
-  print("Number of components:   " + str(i - 1))
-  print("\n\n")
+  # find groups --> groups dict
+  groupByComponent(options.verbose)
+  # merge groups that may be the same component (non-crosslinked matches)
+  if options.merge:
+    mergeGroups(options.verbose)    
   
   # make output file
   handle = open(outFile, "w")
-  handle.write(json.dumps(groupByComponent(), indent=2))
+  handle.write(json.dumps(groups, indent=2))
   handle.close()
+  print("\nWritten " + outFile)
+  
+  print("\nSTATISTICS")
+  print("  - Number of mass spectra:      " + str(j - 1))
+  print("  - Number of groups/components: " + str(i - 1))
+  if not options.merge:
+    print("  - Groups that may be the same component: (use -Y to merge)")
+    #doubles_sortedkeys = sorted(doubles.keys())
+    for key in sorted(doubles.keys()):
+      print("      - " + ", ".join(str(d) for d in sorted(doubles[key])))
+  else:
+    print("  - Number of groups/components after merging non-crosslinked matches: " + str(len(groups)))
+  print("  - Number of hits per group/component:")
+  groupStatistics(options.verbose)  
   
 
 
@@ -171,10 +188,8 @@ def extractRI(name):
 
 
 
-      
 def processHits(hits, verbose = False):
-  global spectra
-  global i
+  global spectra, doubles, i
   
   foundgroups = []
   for hit in hits:
@@ -186,23 +201,31 @@ def processHits(hits, verbose = False):
     group = i
     i = i + 1
     if verbose: print("   new component [C" + str(group) + "]")
-  else:
+  elif len(foundgroups) == 1:
     group = foundgroups[0]
     if verbose: print("   existing component [C" + str(group) + "]")
-    if len(foundgroups) > 1:
-      print ("   !! Components " + ', '.join(str(x) for x in foundgroups) + " may be identical: a spectrum was found that belongs to these groups.")
+  else:
+    # multiple possible groups; try to compile a list of sets
+    # this is not fully waterproof, because it searches only on the lowest component number
+    # but probably works in most cases?
+    if min(foundgroups) not in doubles:
+      doubles[min(foundgroups)] = set(foundgroups)
+    else:
+      doubles[min(foundgroups)].update(foundgroups)
+    group = min(foundgroups)  
+    if verbose: print("   !! multiple matched components: " + ', '.join(str(x) for x in foundgroups) + " (Please check!)")
 
   for hit in hits:
     spectra[hit] = group
+    
+  return doubles
   
   
   
 def groupByComponent(verbose = False):
-  global spectra
-  global i
-  global j
+  print("\nGrouping spectra ...")
+  global spectra, groups, i, j
   
-  groups = {}
   for key, value in spectra.items():
     ri = extractRI(key)
     if value not in groups:
@@ -219,10 +242,82 @@ def groupByComponent(verbose = False):
           groups[value]["maxRI"] = ri
         groups[value]["deltaRI"] = groups[value]["maxRI"] - groups[value]["minRI"]
   
-  return groups
+
+
+def groupStatistics(verbose):
+  global groups
   
+  # make stats
+  stats = {}
+  for n, group in groups.items():
+    if group["count"] in stats:
+      stats[group["count"]] += 1
+    else:
+      stats[group["count"]] = 1
   
+  # write stats
+  if verbose:
+    for n in range(1, len(stats.keys())):
+      if   n < 10 : spacer = "  "
+      elif n < 100: spacer = " "
+      else:         spacer = ""
+      if n in stats:
+        print("      - [" + spacer + str(n) + "] " + str(stats["count"]))
+  else:
+    if 1 in stats: print("      - [      1] " + str(stats[1]))
+    if 2 in stats: print("      - [      2] " + str(stats[2]))
+    if 3 in stats: print("      - [      3] " + str(stats[3]))
+    print("      - [ 4 -  9] " + str(countStats(stats, 4, 9)))
+    print("      - [10 - 19] " + str(countStats(stats, 10, 19)))
+    print("      - [20 - 39] " + str(countStats(stats, 20, 39)))
+    print("      - [40 - 59] " + str(countStats(stats, 40, 59)))
+    print("      - [60 - 79] " + str(countStats(stats, 40, 79)))
+    print("      - [80 - 99] " + str(countStats(stats, 80, 99)))
+    print("      - [ >= 100] " + str(countStats(stats, 100)))
+
+
+
+def countStats(stats, minimum, maximum = False):
+  count = 0
+  
+  if maximum == False:
+    maximum = max(stats.keys(), key=int)
+    
+  for n in range (minimum, maximum):
+    if n in stats: count += stats[n]
+    
+  return count
+  
+
+
+def mergeGroups(verbose):
+  print("\nMerging non-crosslinked groups ...")
+  #sorted list of doubles keys (= the lowest value of each of the double sets)
+  #in reversed order because there might be overlapping double sets; this way
+  #we should recursively remove those overlaps
+  tasklist = sorted(doubles.keys(), reverse=True)
+  
+  for key in tasklist:
+    doubleset = doubles[key]
+    doubleset.discard(key)
+    if verbose: print(" - " + str(key) + " <= " + ", ".join(doubleset))
+    for doubleitem in doubleset:
+      if doubleitem in groups:
+        #take (and remove) the double out of the groups dict
+        d = groups.pop(doubleitem)
+        #merge spectra lists without duplicates (convert to set and union them)
+        specset = set(groups[key]["spectra"]).union(set(d["spectra"]))
+        groups[key]["spectra"] = sorted(list(specset))
+        #count
+        groups[key]["count"] = len(groups[key]["spectra"])
+        #RI things
+        if groups[key]["minRI"] > d["minRI"]: 
+          groups[key]["minRI"] = d["minRI"]
+        if groups[key]["maxRI"] < d["maxRI"]: 
+          groups[key]["maxRI"] = d["maxRI"]
+        groups[key]["deltaRI"] = d["maxRI"] - d["minRI"]
+
+
     
 if __name__ == "__main__":
   main()
-          
