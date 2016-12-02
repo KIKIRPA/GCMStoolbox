@@ -33,7 +33,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] INFILE"
-  parser = OptionParser(usage, version="%prog 0.2")
+  parser = OptionParser(usage, version="%prog 0.2.1")
   parser.add_option("-v", "--verbose", help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile", help="Output file name", action="store",      dest="outfile", type="string")
   parser.add_option("-r", "--ri",      help="Apply RI window (default [0]: no RI filter)",  action="store", dest="ri", type="float", default=0)
@@ -262,7 +262,7 @@ def groupStatistics(verbose):
       elif n < 100: spacer = " "
       else:         spacer = ""
       if n in stats:
-        print("      - [" + spacer + str(n) + "] " + str(stats["count"]))
+        print("      - [" + spacer + str(n) + "] " + str(stats[n]))
   else:
     if 1 in stats: print("      - [      1] " + str(stats[1]))
     if 2 in stats: print("      - [      2] " + str(stats[2]))
