@@ -10,15 +10,15 @@ Python v3.x
 ## convert.py: convert AMDIS files to a NIST MS SEARCH file
 
 ```
- ********************************************************************************
- * GCMStoolbox - a set of tools for GC-MS data analysis                         *
- *   Author:  Wim Fremout / Royal Institute for Cultural Heritage (12 Nov 2016) *
- *   Licence: GNU GPL version 3.0                                               *
- *                                                                              *
- * CONVERT:                                                                     *
- *   convert AMDIS files (*.msl, *.csl, *.isl) to a NIST MS SEARCH file (*.msp) *
- *                                                                              *
- ********************************************************************************
+*******************************************************************************
+* GCMStoolbox - a set of tools for GC-MS data analysis                        *
+*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (30 Nov 2016) *
+*   Licence: GNU GPL version 3.0                                              *
+*                                                                             *
+* CONVERT:                                                                    *
+*   convert AMDIS files (.msl, .csl, .isl) to a NIST MS SEARCH file (.msp)    *
+*                                                                             *
+*******************************************************************************
 
 Usage: convert.py [options] INFILES
 
@@ -33,23 +33,21 @@ Options:
                         are retrieved from the structured file names and are
                         used to set custom MSP fields, adapted spectrum names
                         and sources
-
 ```
 
 
 ## group.py: search groups in batch NIST search results against itself
 
 ```
-
-*******************************************************************************                                                                                       
-* GCMStoolbox - a set of tools for GC-MS data analysis                        *                                                                                       
-*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (28 Nov 2016) *                                                                                       
-*   Licence: GNU GPL version 3.0                                              *                                                                                       
-*                                                                             *                                                                                       
-* GROUP:                                                                      *                                                                                       
-*   Search groups in a NIST search of a large dataset against itself          *                                                                                       
-*                                                                             *                                                                                       
-*******************************************************************************                                                                                       
+*******************************************************************************
+* GCMStoolbox - a set of tools for GC-MS data analysis                        *
+*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (2 Dec 2016)  *
+*   Licence: GNU GPL version 3.0                                              *
+*                                                                             *
+* GROUP:                                                                      *
+*   Search groups in a NIST search of a large dataset against itself          *
+*                                                                             *
+*******************************************************************************
 
 Usage: group.py [options] INFILE
 
@@ -60,10 +58,11 @@ Options:
   -o OUTFILE, --outfile=OUTFILE
                         Output file name
   -r RI, --ri=RI        Apply RI window (default [0]: no RI filter)
-  -R                    Discard hits without RI
+  -D, --discard         Discard hits without RI
   -m MINMF, --match=MINMF
                         Apply RI window (default [0]: no RI filter)
   -n MINRMF, --reverse=MINRMF
                         Apply RI window (default [0]: no RI filter)
+  -Y, --merge           Merge all overlapping groups into a single component
 
 ```
