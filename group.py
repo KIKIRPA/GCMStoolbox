@@ -6,6 +6,7 @@ import os
 from glob import glob
 from optparse import OptionParser, OptionGroup
 import json
+import gcmstoolbox
 
 #globals
 spectra = {}  #dictionary of all spectra with the groups to which they belong
@@ -17,7 +18,7 @@ j = 1         #spectra counter
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (2 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (4 Dec 2016)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* GROUP:                                                                      *")
@@ -33,7 +34,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] INFILE"
-  parser = OptionParser(usage, version="%prog 0.3")
+  parser = OptionParser(usage, version="%prog 0.5")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile",  help="Output file name", action="store",      dest="outfile", type="string")
   parser.add_option("-r", "--riwindow", help="Apply RI window (default [0]: no RI filter)",  action="store", dest="riwindow", type="float", default=0)
@@ -48,28 +49,19 @@ def main():
 
   if options.verbose: print("Processing arguments")
 
+  # input file
   if len(args) == 0:
     exit()
-
-  # make a list of input files
-  inFiles = []
-  for arg in args:
-    inFiles.extend(glob(arg))
-  inFiles = list(set(inFiles)) #remove duplicates
-  for inFile in inFiles:
-    if os.path.isdir(inFile):
-      inFiles.remove(inFile)   #remove directories
-    else:
-      if options.verbose: print(" - input file: " + inFile)
-
-  # number of inFiles; must not be 0
-  numInFiles = len(inFiles)
-  if numInFiles != 1:
-    parser.error("There should be exactly one input file.")
+  elif len(args) >= 2:
+    print("\nThere should be exactly one INFILE.")
     exit()
+  elif os.path.isfile(args[0]):
+    inFile = args[0]
   else:
-    inFile = inFiles[0]
-    
+    print("\nINFILE not found.")
+    exit()
+  
+  # output file
   if options.outfile != None:
     outFile = options.outfile
   else:
@@ -132,7 +124,7 @@ def readmspepsearch(inFile, riwindow = 0, rifactor = 0, discard = False, minMF =
         unknown = unknown.strip()
         
         if riwindow > 0:
-          unknownRI = extractRI(unknown)
+          unknownRI = gcmstoolbox.extractRI(unknown)
           w = riwindow + (rifactor * unknownRI)
         else:
           unknownRI = 0
@@ -144,7 +136,7 @@ def readmspepsearch(inFile, riwindow = 0, rifactor = 0, discard = False, minMF =
         hit = parts[0].replace("<<", "").strip()
         
         if riwindow > 0:
-          hitRI = extractRI(hit)
+          hitRI = gcmstoolbox.extractRI(hit)
         else:
           hitRI = 0
         
@@ -182,14 +174,7 @@ def readmspepsearch(inFile, riwindow = 0, rifactor = 0, discard = False, minMF =
 
 
 
-def extractRI(name):
-  if "RI=" in name:
-    ri = name.split("RI=", 1)[1]
-    ri = ri.split(" ", 1)[0]
-    ri = float(ri.strip())
-  else:
-    ri = 0
-  return ri
+
 
 
 
@@ -232,7 +217,7 @@ def groupByComponent(verbose = False):
   global spectra, groups, i, j
   
   for key, value in spectra.items():
-    ri = extractRI(key)
+    ri = gcmstoolbox.extractRI(key)
     if value not in groups:
       # initialise the group
       groups[value] = {"spectra": [key], "count": 1, "minRI": ri, "maxRI": ri, "deltaRI": 0}

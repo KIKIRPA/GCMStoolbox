@@ -5,12 +5,13 @@ import sys
 import os
 from glob import glob
 from optparse import OptionParser, OptionGroup
+import gcmstoolbox
 
 
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (30 Nov 2016) *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (4 Dec 2016)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* CONVERT:                                                                    *")
@@ -26,7 +27,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] INFILES"
-  parser = OptionParser(usage, version="%prog 0.4")
+  parser = OptionParser(usage, version="%prog 0.5")
   parser.add_option("-v", "--verbose", help="Be very verbose", action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile", help="output file name", action="store", dest="outfile", type="string")
   parser.add_option("-a", "--append", help="append to output file", action="store_true", dest="append",  default=False)
@@ -73,21 +74,31 @@ def main():
   ### OPEN OUTPUT FILE
   
   if options.append:
+    if not os.path.isfile(outFile):
+      print("SOURCE FILE (msp) not found.\n")
+      exit()
+    #first read the outfile to know the highest DB#
+    i = 0
+    with open(outFile,'r') as fho:
+      for line in fho:
+        if line.casefold().startswith('db#'):
+          x = int(line.split(":", 1)[1].strip())
+          if x > i: i = x
+    i = i + 1
     fho = open(outFile, mode='a')
   else:
     fho = open(outFile, mode='w')
+    i = 1 # spectrum number
   
   ### ITERATE THROUGH INFILES
-  
-  i = 1 # spectrum number
   
   for inFile in inFiles:
     print("\nProcessing file: " + inFile)
     with open(inFile,'r') as fhi:   #file handle closes itself 
       while True:
         # read spectra
-        sp = readspectrum(fhi, i, options.verbose)
-        if not sp: break   # break from while loop if readspectrum returns False (<= EOF)
+        sp = gcmstoolbox.readspectrum(fhi, i, options.verbose)
+        if sp == "eof": break   # break from while loop if readspectrum returns False (<= EOF)
         
         # apply special ELinC formatting
         if options.elinc:
@@ -96,7 +107,7 @@ def main():
         # write spectrum
         if (options.append) or (i > 1):     #always start with an emtpy line, except for the first spectrum in a new file (not append)
           fho.write("\n")
-        writespectrum(fho, sp, options.verbose)
+        gcmstoolbox.writespectrum(fho, sp, options.verbose)
         
         # increase spectrum number
         i = i + 1
@@ -105,106 +116,6 @@ def main():
   print("\nFinalised. Wrote " + outFile + "\n")
   fho.close()
   exit
-
-
-      
-    
-
-def readspectrum(fh, i, verbose = False):
-  # we expect that each spectrum starts with 'name' (case insensitive)
-  # we use this as a trigger to start recording the metadata, reading the filehandle line by line
-  # once we read 'num peaks' we start collecting the spectrum itself, counting the number
-  # once numpeaks is reached, we return the data as a dictonary
-  
-  for line in fh: 
-    if line.casefold().startswith('name'):
-      #initialize some data
-      spectrum = {'Name': line.split(':', 1)[1].strip()}  #define a dictionary
-      readmeta = True
-      readdata = False
-      xSeries = []
-      ySeries = []
-      
-      #verbose
-      if verbose:
-        print(" - Reading spectrum " + str(i) + ": " + spectrum.get('Name'))
-      
-      for nextline in fh:
-        nextline = nextline.strip() #remove newline and other spaces from the end (and beginning)
-        
-        if nextline == "":  #neglect empty lines, even within a spectrum
-          pass  
-        
-        elif nextline.casefold().startswith('num peaks'):  #numpeaks: switch from readmeta to readdata mode
-          numpeaks = int(nextline.split(':', 1)[1].strip())
-          spectrum['Num Peaks'] = numpeaks
-          readmeta = False
-          readdata = True
-        
-        elif nextline.casefold().startswith('cas#'):
-          #NOTE: NIST seems to store sometimes CAS# and NIST# on the same line, CAS# first and then NIST# 
-          #      separated with semicolon. I haven't seen AMDIS doing this. I hope this is the only case?
-          if 'nist#' in nextline.casefold():
-            parts = nextline.split(';', 1)
-            spectrum["CAS#"]  = parts[0].split(':', 1)[1].strip()
-            spectrum["NIST#"] = parts[1].split(':', 1)[1].strip()
-          else:
-            spectrum["CAS#"]  = nextline.split(':', 1)[1].strip()
-      
-        elif readmeta:     #all metadata
-          #NOTE: I assume that each metadata field is restrained to a single line; I haven't seen any
-          #      multiline field so far. This code only supports single lines!
-          #NOTE: We don't support multiple "Synon" tags as in the NIST MSP files
-          #      (if we would implement it, we need to put those in a list/array)
-          parts = nextline.split(':', 1)
-          parts[0] = parts[0].strip().title()       # field name: each first letter is capilalised in NIST
-          if parts[0] == "Casno": parts[0] = "CAS#" # exception: CASNO in Amdis translates into CAS# in NIST
-          if parts[0] == "Nist#": parts[0] = "NIST#"
-          if parts[0] == "Db#":   parts[0] = "DB#"
-          if parts[0] == "Ri":    parts[0] = "RI"
-          if parts[0] == "Rt":    parts[0] = "RT"
-          if parts[0] == "Mw":    parts[0] = "MW"
-          if parts[0] == "Exactmass": parts[0] = "ExactMass"
-          spectrum[parts[0]] = parts[1].strip()
-        
-        elif readdata:    # read spectral data
-          #rough conversion from Amdis bracket-style to NIST semicolon style
-          nextline = nextline.replace("(", "").replace(")", ";")
-          
-          #prepare for splitting
-          if nextline[-1:] == ";":      #remove ; from the end of the line (if present)
-            nextline = nextline[:-1]
-          
-          #split into X-Y couples, separate values and append to x and y series
-          couples = nextline.split(";")
-          for couple in couples:
-            x, y = couple.split(None, 1)   #None should split on multiple whitespaces
-            xSeries.append(int(x.strip()))
-            ySeries.append(int(y.strip()))
-          
-          #countdown numpeaks and prepare to end this function
-          numpeaks = numpeaks - len(couples)
-          if numpeaks == 0:
-            #one more thing: is this ySeries normalised?
-            #Amdis normalises to 1000, NIST to 999
-            #if normalised to 1000, just change this value(s) to 999 (very small error)
-            #if not normalised, we won't touch it
-            if max(ySeries) == 1000:
-              ySeries = [999 if y == 1000 else y for y in ySeries]
-              if verbose: print("     ! 1000 -> 999...") 
-            elif max(ySeries) == 999:
-              pass
-            else:
-              if verbose: print("      ! Spectrum is unnormalised. Max Y: " + str(max(ySeries)) + " Did not touch...")      
-            #add series to the spectrum dictionary    
-            spectrum['xSeries'] = xSeries
-            spectrum['ySeries'] = ySeries
-            spectrum['DB#'] = str(i)
-            #finished!
-            return spectrum
-  
-  # if all lines are processed
-  return False
 
 
 
@@ -246,48 +157,6 @@ def elincize(sp, inFile, separator = "-", verbose = False):
                     )
     
   return sp
-
-
-
-
-def writespectrum(fh, sp, verbose = False):
-  # write the spectrum to the file handle line by line in NIST MSP format
-  # don't mind to much about the order of the lines; we start with Name, and end with NumPeaks and the spectral data
-  
-  #verbose
-  if verbose:
-    print("    - Write spectrum in output file")
-  
-  #start with the Name field (and remove it from the dictionary)
-  fh.write('Name: '   + sp.pop('Name', 'None') + "\n")
-  
-  #remove the fields that will be written at the end
-  numpeaks = sp.pop('Num Peaks')
-  xSeries  = sp.pop('xSeries')
-  ySeries  = sp.pop('ySeries')
-  
-  #then iterate over the remaining items
-  for key, value in sp.items():
-    fh.write(key + ': ' + value + "\n")
-  
-  # write NumPeaks
-  fh.write('Num Peaks: ' + str(numpeaks) + "\n")
-  
-  # NIST MSP puts 5 couples on each line
-  # 1. iterate over full lines
-  div = numpeaks // 5          # we have %div full lines
-  for i in range(div):         
-    line = ""  
-    for j in range(5): 
-      line = line + str(xSeries.pop(0)) + " " + str(ySeries.pop(0)) + "; "
-    fh.write(line.rstrip(" ") + "\n")
-  # 2. iterate over full lines
-  mod = numpeaks % 5           # the last line will have mod couples
-  line = ""
-  for i in range(mod):
-    line = line + str(xSeries.pop(0)) + " " + str(ySeries.pop(0)) + "; "
-  fh.write(line.rstrip(" ") + "\n")
-    
 
 
   
