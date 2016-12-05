@@ -11,7 +11,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (4 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (5 Dec 2016)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* CONVERT:                                                                    *")
@@ -27,11 +27,12 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] INFILES"
-  parser = OptionParser(usage, version="%prog 0.5")
+  parser = OptionParser(usage, version="%prog 0.6")
   parser.add_option("-v", "--verbose", help="Be very verbose", action="store_true", dest="verbose", default=False)
-  parser.add_option("-o", "--outfile", help="output file name", action="store", dest="outfile", type="string")
-  parser.add_option("-a", "--append", help="append to output file", action="store_true", dest="append",  default=False)
-  parser.add_option("-e", "--elinc", help="Special formatting for ELinC data. Extra parameters are retrieved from the structured file names and are used to set custom MSP fields, adapted spectrum names and sources", action="store_true", dest="elinc", default=False)
+  parser.add_option("-o", "--outfile", help="Output file name", action="store", dest="outfile", type="string")
+  parser.add_option("-a", "--append",  help="Append to existing output file", action="store_true", dest="append",  default=False)
+  parser.add_option("-s", "--specno",  help="Override spectrum numbering, start with I", action="store", dest="i", default=1, type="int")
+  parser.add_option("-e", "--elinc",   help="Special formatting for ELinC data. Extra parameters are retrieved from the structured file names and are used to set custom MSP fields, adapted spectrum names and sources", action="store_true", dest="elinc", default=False)
   (options, args) = parser.parse_args()
 
   ### ARGUMENTS
@@ -85,10 +86,12 @@ def main():
           x = int(line.split(":", 1)[1].strip())
           if x > i: i = x
     i = i + 1
+    if i < options.i:
+      i = options.i 
     fho = open(outFile, mode='a')
   else:
     fho = open(outFile, mode='w')
-    i = 1 # spectrum number
+    i = options.i # spectrum number
   
   ### ITERATE THROUGH INFILES
   

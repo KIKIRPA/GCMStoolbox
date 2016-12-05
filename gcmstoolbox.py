@@ -87,19 +87,18 @@ def readspectrum(fh, i = 0, verbose = False, match = []):
           #countdown numpeaks and prepare to end this function
           numpeaks = numpeaks - len(couples)
           if numpeaks == 0:
-            #one more thing: is this ySeries normalised?
+            #one more thing: is y normalised?
             #Amdis normalises to 1000, NIST to 999
             #if normalised to 1000, just change this value(s) to 999 (very small error)
             #if not normalised, we won't touch it
             if max(xy.values()) == 1000:
               for x, y in xy.items():
                 if y == 1000: xy[x] = 999 
-              #ySeries = [999 if y == 1000 else y for y in ySeries]
               if verbose: print("     ! 1000 -> 999...") 
             elif max(xy.values()) == 999:
               pass
             else:
-              if verbose: print("      ! Spectrum is unnormalised. Max Y: " + str(max(ySeries)) + " Did not touch...")      
+              if verbose: print("      ! Spectrum is unnormalised. Max Y: " + str(max(xy.values())) + " Did not touch...")      
             #add series to the spectrum dictionary    
             spectrum['xydata'] = xy
             if i != 0: spectrum['DB#'] = str(i)
