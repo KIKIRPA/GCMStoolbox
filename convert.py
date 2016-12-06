@@ -92,6 +92,8 @@ def main():
   else:
     fho = open(outFile, mode='w')
     i = options.i # spectrum number
+    
+  j = i
   
   ### ITERATE THROUGH INFILES
   
@@ -108,7 +110,7 @@ def main():
           sp = elincize(sp, inFile, verbose=options.verbose)
         
         # write spectrum
-        if (options.append) or (i > 1):     #always start with an emtpy line, except for the first spectrum in a new file (not append)
+        if (options.append) and (i == j):     #if append and first spectrum: start with empty line
           fho.write("\n")
         gcmstoolbox.writespectrum(fho, sp, options.verbose)
         

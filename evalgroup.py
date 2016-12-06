@@ -12,7 +12,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (4 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (6 Dec 2016)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* EVALGROUP                                                                   *")
@@ -24,7 +24,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] GROUP(S)"
-  parser = OptionParser(usage, version="%prog 0.1")
+  parser = OptionParser(usage, version="%prog 0.2")
   parser.add_option("-v", "--verbose",    help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-s", "--sourcefile", help="Source msp file name [default: joined.msp]", action="store",  dest="source", type="string", default="joined.msp")
   parser.add_option("-g", "--groupfile",  help="Group json file name [default: groups.json]", action="store",  dest="groups", type="string", default="groups.json")
@@ -46,7 +46,7 @@ def main():
 
   # make a dict of groups that should be seached and compiled into a msp
   for arg in args:
-    groupdict[int(arg.lower().lstrip("c"))] = set() #we will fill these with the spectra names corresponding with these groups
+    groupdict[int(arg.lower().lstrip("c").strip(","))] = set() #we will fill these with the spectra names corresponding with these groups
   
   # source file
   if not os.path.isfile(options.source):
@@ -62,7 +62,7 @@ def main():
   if options.outfile != None:
     outFile = options.outfile
   else:
-    outFile = "complib_" + "_".join(str(x) for x in sorted(groupdict.keys())) + ".msp"
+    outFile = "evalgroup_" + "_".join(str(x) for x in sorted(groupdict.keys())) + ".msp"
     
   ### EXTRACT SPECTRA NAMES FROM JSON GROUPS FILE
   
@@ -107,20 +107,20 @@ def main():
   if options.verbose: print("\nWriting spectra...")
   
   with open(outFile,'w') as fh:
-    for group in groupdict:
+    for group, spectra in groupdict.items():
       sumspectra = [] #list of spectra that will be summed
       prefix = "C" + str(group) + " "
       
       # write individual spectra
-      for key in group:
-        sp = spectdict.pop(key)
+      for key in spectra:
+        sp = specdict.pop(key)
         sp["Name"] = prefix + sp["Name"] #add group number to spectrum name
-        gcmstoolbox.writespectrum(fh, sp, verbose=False)
+        gcmstoolbox.writespectrum(fh, dict(sp), verbose=False)
         sumspectra.append(sp)
       
       # write sum spectra
       prefix = prefix + "sum"
-      sp = sumspectrum(*sumspectra, name=prefix)
+      sp = gcmstoolbox.sumspectrum(*sumspectra, name=prefix)
       gcmstoolbox.writespectrum(fh, sp, verbose=False)
 
 

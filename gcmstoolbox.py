@@ -24,7 +24,7 @@ def readspectrum(fh, i = 0, verbose = False, match = []):
       xy = {}
       
       #match: list of spectrum names: only return spectrum for those, "no match" for others
-      if (len(match) > 0) and (spectrum["name"] not in match):
+      if (len(match) > 0) and (spectrum["Name"] not in match):
         return "no match"
       
       #verbose
@@ -149,12 +149,14 @@ def writespectrum(fh, sp, verbose = False):
     fh.write(line.rstrip(" ") + "\n")
   # 2. iterate over the last incomplete line
   mod = numpeaks % 5           # the last line will have mod couples
-  line = ""
-  for i in range(mod):
-    x = xvalues.pop(0)
-    y = xydata[x]
-    line = line + str(x) + " " + str(y) + "; "
-  fh.write(line.rstrip(" ") + "\n")
+  if mod > 0:
+    line = ""
+    for i in range(mod):
+      x = xvalues.pop(0)
+      y = xydata[x]
+      line = line + str(x) + " " + str(y) + "; "
+    fh.write(line.rstrip(" ") + "\n")
+  fh.write("\n")
     
 
 
