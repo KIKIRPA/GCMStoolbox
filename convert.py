@@ -11,7 +11,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (5 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (6 Dec 2016)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* CONVERT:                                                                    *")
@@ -27,7 +27,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] INFILES"
-  parser = OptionParser(usage, version="%prog 0.6")
+  parser = OptionParser(usage, version="%prog 0.6.1")
   parser.add_option("-v", "--verbose", help="Be very verbose", action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile", help="Output file name", action="store", dest="outfile", type="string")
   parser.add_option("-a", "--append",  help="Append to existing output file", action="store_true", dest="append",  default=False)
@@ -152,7 +152,7 @@ def elincize(sp, inFile, separator = "-", verbose = False):
   sp['Name']     = "S" + sp['DB#'] + " RI=" + sp['RI'] + " " + parts[1] + "-" + parts[2] + "-" + parts[3] + "-" + parts[6]
   sp['Source']   = os.path.basename(inFile)
   sp['Comments'] = ('Sample="' + parts[0] + '-' + parts[1] + '-' + parts[2] + '" '
-                     + 'RI="' + sp['RI'] + '" RT=' + sp['RT'] + '" '
+                     + 'RI="' + sp['RI'] + '" RT="' + sp['RT'] + '" '
                      + 'Aging="' + parts[3][:-1] + ' days" '
                      + 'Color="' + ("black" if parts[3][-1:].upper() == "B" else "unpigmented") + '" '
                      + 'Description="' + parts[4] + '" '
