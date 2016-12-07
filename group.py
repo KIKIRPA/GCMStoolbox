@@ -34,7 +34,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] MSPEPSEARCH_OUTPUT"
-  parser = OptionParser(usage, version="%prog 0.5.1")
+  parser = OptionParser(usage, version="%prog 0.6")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile",  help="Output file name", action="store",      dest="outfile", type="string")
   parser.add_option("-r", "--riwindow", help="Apply RI window (default [0]: no RI filter)",  action="store", dest="riwindow", type="float", default=0)
@@ -70,12 +70,12 @@ def main():
     else:             outFile = "groups.json"
 
   # read mspepsearch results and create the spectra dictionary (couples of "spectrum name : group number") --> spectra dict
-  readmspepsearch(inFile, options.riwindow, options.rifactor, options.discard, options.minmf, options.minrmf, options.verbose)
+  readmspepsearch(inFile, options.riwindow, options.rifactor, options.discard, options.minmf, options.minrmf, options.merge, options.verbose)
   # find groups --> groups dict
   groupByComponent(options.verbose)
   # merge groups that may be the same component (non-crosslinked matches)
   if options.merge:
-    mergeGroups(options.verbose)    
+    mergeGroups(options.verbose)
   
   # make output file
   handle = open(outFile, "w")
@@ -98,7 +98,7 @@ def main():
   
 
 
-def readmspepsearch(inFile, riwindow = 0, rifactor = 0, discard = False, minMF = 0, minRMF = 0, verbose = False):
+def readmspepsearch(inFile, riwindow = 0, rifactor = 0, discard = False, minMF = 0, minRMF = 0, merge = False, verbose = False):
   ### ITERATE THROUGH INFILE
   # and generate a dictionary of spectra
   print("\nProcessing file: " + inFile)
@@ -109,13 +109,13 @@ def readmspepsearch(inFile, riwindow = 0, rifactor = 0, discard = False, minMF =
   with open(inFile,'r') as handle:   #file handle closes itself 
     for line in handle: 
       if line.casefold().startswith('unknown'):
-        # first process the previous hits list 
+        # first process the previous hits list [CAUTION: except the last hit list!]
         if len(hits) > 0:
           if verbose: 
             if riwindow > 0: msg = " (RI window: " + str(round(w,2)) + ")"
             else:            msg = ""
             print(" - Unknown: " + unknown + msg)
-          processHits(hits, verbose)
+          processHits(hits, unknown, merge, verbose)
         
         # reinit
         j = j + 1
@@ -171,23 +171,26 @@ def readmspepsearch(inFile, riwindow = 0, rifactor = 0, discard = False, minMF =
   
   #process the last unknown
   if len(hits) > 0:
-    if verbose: print(" - Unknown: " + unknown)
-    processHits(hits, verbose)
+    if verbose: 
+      if riwindow > 0: msg = " (RI window: " + str(round(w,2)) + ")"
+      else:            msg = ""
+      print(" - Unknown: " + unknown + msg)
+    processHits(hits, unknown, merge, verbose)
 
 
 
 
-
-
-
-def processHits(hits, verbose = False):
+def processHits(hits, unknown, merge = False, verbose = False):
   global spectra, doubles, i
   
   foundgroups = []
   for hit in hits:
     if hit in spectra:
+      if verbose: print("   -> hit: " + hit +  " -> C" + str(spectra[hit]))
       if spectra[hit] not in foundgroups:
         foundgroups.append(spectra[hit])
+    else:
+      if verbose: print("   -> hit: " + hit +  " -> not attributed yet")
   
   if len(foundgroups) == 0:
     group = i
@@ -204,13 +207,21 @@ def processHits(hits, verbose = False):
       doubles[min(foundgroups)] = set(foundgroups)
     else:
       doubles[min(foundgroups)].update(foundgroups)
-    group = min(foundgroups)  
-    if verbose: print("   !! multiple matched components: " + ', '.join(str(x) for x in foundgroups) + " (Please check!)")
+    #group to attribute the hits to the group to which the unknown is allready attributed
+    #and if the unknown is not yet attributed, or in case of merge: to the lowest group
+    if (not merge) and (unknown in spectra):
+      group = spectra[unknown]
+    else:
+      group = min(foundgroups)  
+    if verbose: 
+      print("   !! multiple matched components: " + ', '.join(str(x) for x in foundgroups) + " (Please check!)")
+      if not merge: print("      non-attributed spectra are now C" +  str(group))
+      else:         print("      ALL spectra are now (re)attributed to C" +  str(group) + " (merge level 1)")
 
   for hit in hits:
-    spectra[hit] = group
-    
-  return doubles
+    if (hit not in spectra) or merge:   # if merge=true :  first level of merging
+      spectra[hit] = group
+
   
   
   

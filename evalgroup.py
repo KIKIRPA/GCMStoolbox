@@ -24,7 +24,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] GROUP(S)"
-  parser = OptionParser(usage, version="%prog 0.2.1")
+  parser = OptionParser(usage, version="%prog 0.3")
   parser.add_option("-v", "--verbose",    help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-s", "--sourcefile", help="Source msp file name [default: converted.msp]", action="store",  dest="sourcefile", type="string", default="converted.msp")
   parser.add_option("-g", "--groupfile",  help="Group json file name [default: groups[_merged].json]", action="store",  dest="groupsfile", type="string")
@@ -45,6 +45,7 @@ def main():
   if len(args) == 0:
     print("No groups to search?")
   for arg in args:
+    print(arg.lower().lstrip("c").strip(","))
     groupdict[int(arg.lower().lstrip("c").strip(","))] = set() #we will fill these with the spectra names corresponding with these groups
   
   # source file (default=converted.msp)
@@ -53,10 +54,10 @@ def main():
     exit()
   
   # json groups file
-  if options.groupsfile = None:
+  if options.groupsfile == None:
     if   os.path.isfile("groups_merged.json"): options.groupsfile = "groups_merged.json"
     elif os.path.isfile("groups.json"): options.groupsfile = "groups.json"
-  if not os.path.isfile(options.groups):
+  if not os.path.isfile(options.groupsfile):
     print("!!\nGROUP FILE (json) not found.\n")
     exit()
     
@@ -70,7 +71,7 @@ def main():
   
   if options.verbose: print("\nProcessing groups file (json)...")
 
-  with open(options.groups,'r') as fh:    
+  with open(options.groupsfile,'r') as fh:    
     groups = json.load(fh)
     
   for key in groupdict:
@@ -78,7 +79,7 @@ def main():
       groupdict[key].update(groups[str(key)]["spectra"])
       specset.update(groups[str(key)]["spectra"])
     else:
-      print("Group " + str(key) + " not found in " + options.groups)
+      print("Group " + str(key) + " not found in " + options.groupsfile)
   
   del groups   #remove this potenially very large variable from memory
   
