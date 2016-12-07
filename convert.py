@@ -11,7 +11,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (6 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (7 Dec 2016)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* CONVERT:                                                                    *")
@@ -26,8 +26,8 @@ def main():
 
   ### OPTIONPARSER
   
-  usage = "usage: %prog [options] INFILES"
-  parser = OptionParser(usage, version="%prog 0.6.1")
+  usage = "usage: %prog [options] AMDIS_FILES"
+  parser = OptionParser(usage, version="%prog 0.6.2")
   parser.add_option("-v", "--verbose", help="Be very verbose", action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile", help="Output file name", action="store", dest="outfile", type="string")
   parser.add_option("-a", "--append",  help="Append to existing output file", action="store_true", dest="append",  default=False)
@@ -39,13 +39,14 @@ def main():
 
   if options.verbose: print("Processing INFILES and options")
 
-  if len(args) == 0:
-    exit()
-
   # make a list of input files
   inFiles = []
-  for arg in args:
-    inFiles.extend(glob(arg))
+  if len(args) == 0:
+    print("\n!!No AMDIS FILES given, trying *.msl in the current directory")
+    inFiles.extend(glob("*.msl"))
+  else:
+    for arg in args:
+      inFiles.extend(glob(arg))
   inFiles = list(set(inFiles)) #remove duplicates
   for inFile in inFiles:
     if os.path.isdir(inFile):
@@ -64,9 +65,9 @@ def main():
   if options.outfile != None:
     outFile = options.outfile
   elif numInFiles == 1:
-    outFile = os.path.splitext(os.path.basename(inFiles[0]))[0] + ".msp"
+    outFile = "converted_" + os.path.splitext(os.path.basename(inFiles[0]))[0] + ".msp"
   else:
-    outFile = "joined.msp"
+    outFile = "converted.msp"
 
   if options.verbose: print(" => output file: " + outFile + (" [append]" if options.append else ""))
 

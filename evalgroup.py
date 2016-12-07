@@ -12,7 +12,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (6 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (7 Dec 2016)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* EVALGROUP                                                                   *")
@@ -24,10 +24,10 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] GROUP(S)"
-  parser = OptionParser(usage, version="%prog 0.2")
+  parser = OptionParser(usage, version="%prog 0.2.1")
   parser.add_option("-v", "--verbose",    help="Be very verbose",  action="store_true", dest="verbose", default=False)
-  parser.add_option("-s", "--sourcefile", help="Source msp file name [default: joined.msp]", action="store",  dest="source", type="string", default="joined.msp")
-  parser.add_option("-g", "--groupfile",  help="Group json file name [default: groups.json]", action="store",  dest="groups", type="string", default="groups.json")
+  parser.add_option("-s", "--sourcefile", help="Source msp file name [default: converted.msp]", action="store",  dest="sourcefile", type="string", default="converted.msp")
+  parser.add_option("-g", "--groupfile",  help="Group json file name [default: groups[_merged].json]", action="store",  dest="groupsfile", type="string")
   parser.add_option("-o", "--outfile",  help="Output file name", action="store",      dest="outfile", type="string")
   (options, args) = parser.parse_args()
 
@@ -41,21 +41,23 @@ def main():
 
   if options.verbose: print("Processing arguments...")
 
-  if len(args) == 0:
-    print("No arguments")
-
   # make a dict of groups that should be seached and compiled into a msp
+  if len(args) == 0:
+    print("No groups to search?")
   for arg in args:
     groupdict[int(arg.lower().lstrip("c").strip(","))] = set() #we will fill these with the spectra names corresponding with these groups
   
-  # source file
-  if not os.path.isfile(options.source):
-    print("SOURCE FILE (msp) not found.\n")
+  # source file (default=converted.msp)
+  if not os.path.isfile(options.sourcefile):
+    print("!!\nSOURCE FILE (msp) not found.\n")
     exit()
   
-  # source file
+  # json groups file
+  if options.groupsfile = None:
+    if   os.path.isfile("groups_merged.json"): options.groupsfile = "groups_merged.json"
+    elif os.path.isfile("groups.json"): options.groupsfile = "groups.json"
   if not os.path.isfile(options.groups):
-    print("GROUP FILE (json) not found.\n")
+    print("!!\nGROUP FILE (json) not found.\n")
     exit()
     
   # output file
@@ -84,7 +86,7 @@ def main():
   
   if options.verbose: print("\nReading spectra...")
 
-  with open(options.source,'r') as fh:
+  with open(options.sourcefile,'r') as fh:
     while True:
       sp = gcmstoolbox.readspectrum(fh, verbose=options.verbose, match=list(specset))
       if sp == "eof":
@@ -98,7 +100,7 @@ def main():
       
   #if not all spectra were obtained from the source file: error!
   if len(specset) != 0:
-    print("ERROR Some spectra could not be found in " + options.source + ":")
+    print("ERROR Some spectra could not be found in " + options.sourcefile + ":")
     print("  - " + "\n  - ".join(specset))
     exit()
 

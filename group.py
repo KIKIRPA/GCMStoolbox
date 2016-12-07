@@ -18,7 +18,7 @@ j = 1         #spectra counter
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (4 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (7 Dec 2016)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* GROUP:                                                                      *")
@@ -33,8 +33,8 @@ def main():
 
   ### OPTIONPARSER
   
-  usage = "usage: %prog [options] INFILE"
-  parser = OptionParser(usage, version="%prog 0.5")
+  usage = "usage: %prog [options] MSPEPSEARCH_OUTPUT"
+  parser = OptionParser(usage, version="%prog 0.5.1")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile",  help="Output file name", action="store",      dest="outfile", type="string")
   parser.add_option("-r", "--riwindow", help="Apply RI window (default [0]: no RI filter)",  action="store", dest="riwindow", type="float", default=0)
@@ -50,10 +50,11 @@ def main():
   if options.verbose: print("Processing arguments")
 
   # input file
-  if len(args) == 0:
-    exit()
+  if (len(args) == 0) and os.path.isfile("mspepsearch.txt"):
+    print("\n!!No MSPEPSEARCH_OUTPUT given, trying mspepsearch.txt in the current directory")
+    inFile = "mspepsearch.txt"
   elif len(args) >= 2:
-    print("\nThere should be exactly one INFILE.")
+    print("\n!!There should be exactly one MSPEPSEARCH_OUTPUT file.")
     exit()
   elif os.path.isfile(args[0]):
     inFile = args[0]
@@ -65,7 +66,8 @@ def main():
   if options.outfile != None:
     outFile = options.outfile
   else:
-    outFile = "groups.json"
+    if options.merge: outFile = "groups_merged.json"
+    else:             outFile = "groups.json"
 
   # read mspepsearch results and create the spectra dictionary (couples of "spectrum name : group number") --> spectra dict
   readmspepsearch(inFile, options.riwindow, options.rifactor, options.discard, options.minmf, options.minrmf, options.verbose)
