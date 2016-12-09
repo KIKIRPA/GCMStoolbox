@@ -34,7 +34,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] MSPEPSEARCH_OUTPUT"
-  parser = OptionParser(usage, version="%prog 0.6")
+  parser = OptionParser(usage, version="%prog 0.6.1")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile",  help="Output file name", action="store",      dest="outfile", type="string")
   parser.add_option("-r", "--riwindow", help="Apply RI window (default [0]: no RI filter)",  action="store", dest="riwindow", type="float", default=0)
@@ -59,7 +59,7 @@ def main():
   elif os.path.isfile(args[0]):
     inFile = args[0]
   else:
-    print("\nINFILE not found.")
+    print("\nMSPEPSEARCH_OUTPUT not found.")
     exit()
   
   # output file
