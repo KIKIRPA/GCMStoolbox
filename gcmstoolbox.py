@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import sys
 
 def main():
   print(  "GCMStoolbox")
@@ -114,8 +115,7 @@ def readspectrum(fh, i = 0, verbose = False, match = []):
 def writespectrum(fh, sp, verbose = False):
   # write the spectrum to the file handle line by line in NIST MSP format
   # don't mind to much about the order of the lines; we start with Name, and end with NumPeaks and the spectral data
-  
-    
+
   #remove the fields that will be written at the end
   name     = sp.pop('Name', 'None')
   numpeaks = sp.pop('Num Peaks')
@@ -192,7 +192,7 @@ def sumspectrum(*spectra, name="sum"):
   sp = {}
   sp['Name'] = name
   if ri != 0:
-    sp['Name'] = sp['Name'] + " RI=" + str(round(ri,2))
+    sp['Name'] += " RI=" + str(round(ri,2))
     sp['RI'] = str(round(ri,2))
   sp['Num Peaks'] = len(xysum)
   sp['xydata'] = xysum
@@ -211,6 +211,31 @@ def extractRI(name):
   else:
     ri = 0
   return ri
+
+
+ 
+ 
+
+# Print iterations progress
+def printProgress (iteration, total, prefix = '', suffix = '', decimals = 1, barLength = 50):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        barLength   - Optional  : character length of bar (Int)
+    """
+    formatStr = "{0:." + str(decimals) + "f}"
+    percent = formatStr.format(100 * (iteration / float(total)))
+    filledLength = int(round(barLength * iteration / float(total)))
+    bar = '█' * filledLength + '-' * (barLength - filledLength)
+    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percent, '%', suffix)),
+    if iteration == total:
+        sys.stdout.write('\n')
+    sys.stdout.flush()
 
 
 

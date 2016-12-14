@@ -12,7 +12,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (9 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (14 Dec 2016) *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* FILTER                                                                      *")
@@ -23,7 +23,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] GROUP_JSON_FILE"
-  parser = OptionParser(usage, version="%prog 0.1")
+  parser = OptionParser(usage, version="%prog 0.2")
   parser.add_option("-v", "--verbose",    help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile",    help="Output file name", action="store", dest="outfile", type="string")
   group = OptionGroup(parser, "CRITERIUM 1", "Filter out groups based on group number")
@@ -100,7 +100,7 @@ def main():
     if not options.verbose: 
       i = 0
       j = len(candidates)
-      printProgress(i, j)
+      gcmstoolbox.printProgress(i, j)
     for c in list(candidates):   # iterate over a copy of the set, so we can remove things from the original while iterating
       if c not in removegroups:
         candidates.discard(c)
@@ -108,7 +108,7 @@ def main():
       # progress bar
       if not options.verbose: 
         i += 1
-        printProgress(i, j)
+        gcmstoolbox.printProgress(i, j)
   
     if options.verbose: 
       print("candidates for removal:")
@@ -124,7 +124,7 @@ def main():
     if not options.verbose: 
       i = 0
       j = len(candidates)
-      printProgress(i, j)
+      gcmstoolbox.printProgress(i, j)
     for c in list(candidates):   # iterate over a copy of the set, so we can remove things from the original while iterating
       if groups[c]["count"] >= options.count:  #remove from candidates = keep group
         candidates.discard(c)
@@ -132,7 +132,7 @@ def main():
       # progress bar
       if not options.verbose: 
         i += 1
-        printProgress(i, j)
+        gcmstoolbox.printProgress(i, j)
   
     if options.verbose: 
       print("candidates for removal:")
@@ -150,7 +150,7 @@ def main():
     if not options.verbose: 
       i = 0
       j = len(candidates)
-      printProgress(i, j)
+      gcmstoolbox.printProgress(i, j)
     for c in list(candidates):
       # read the spectra in this group
       splist = []
@@ -186,7 +186,7 @@ def main():
       # progress bar
       if not options.verbose: 
         i += 1
-        printProgress(i, j)
+        gcmstoolbox.printProgress(i, j)
       
       
     if options.verbose: 
@@ -226,29 +226,7 @@ def tabulate(words, termwidth=79, pad=3):
     format_str = ('%%-%ds' % width) * len(row)
     table.append(format_str % tuple(row))
   return '\n'.join(table)
- 
- 
 
-# Print iterations progress
-def printProgress (iteration, total, prefix = '', suffix = '', decimals = 1, barLength = 50):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        barLength   - Optional  : character length of bar (Int)
-    """
-    formatStr = "{0:." + str(decimals) + "f}"
-    percent = formatStr.format(100 * (iteration / float(total)))
-    filledLength = int(round(barLength * iteration / float(total)))
-    bar = '█' * filledLength + '-' * (barLength - filledLength)
-    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percent, '%', suffix)),
-    if iteration == total:
-        sys.stdout.write('\n')
-    sys.stdout.flush()
 
 
     
