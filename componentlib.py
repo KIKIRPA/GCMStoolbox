@@ -12,7 +12,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (12 Dec 2016) *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (15 Dec 2016) *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* COMPONENTLIB                                                                *")
@@ -23,12 +23,13 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] SOURCE_MSP_FILE GROUP_JSON_FILE"
-  parser = OptionParser(usage, version="%prog 0.1")
-  parser.add_option("-v", "--verbose",    help="Be very verbose",  action="store_true", dest="verbose", default=False)
-  parser.add_option("--debug",            help="Debug version; only runs on 5 first groups", action="store_true", dest="debug", default=False)
-  parser.add_option("-c", "--cnumber",    help="Start number for component numbers", action="store", dest="c", type="int" , default=1)
-  parser.add_option("-p", "--preserve",   help="Preserve group numbers", action="store_true", dest="preserve", default=False)
-  parser.add_option("-o", "--outfile",    help="Output file name", action="store", dest="outfile", type="string", default="componentlib.msp")
+  parser = OptionParser(usage, version="%prog 0.2")
+  parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
+  parser.add_option("-c", "--cnumber",  help="Start number for component numbers", action="store", dest="c", type="int" , default=1)
+  parser.add_option("-p", "--preserve", help="Preserve group numbers", action="store_true", dest="preserve", default=False)
+  parser.add_option("-e", "--elinc",    help="Special formatting for ELinC data", action="store_true", dest="elinc", default=False)
+  parser.add_option("-o", "--outfile",  help="Output file name [default: componentlib.msp]", action="store", dest="outfile", type="string", default="componentlib.msp")
+  parser.add_option("-r", "--report",   help="Make a report in CSV", action="store", dest="csvfile", type="string")
   (options, args) = parser.parse_args()
 
   ### ARGUMENTS
@@ -103,7 +104,7 @@ def main():
     for g in sorted(int(x) for x in groups.keys()):
       # group or component numbering:
       if not options.preserve: c = i + options.c
-      else:                    c = g 
+      else:                    c = g
       
       # collect the spectra
       groupspectra = []
@@ -112,12 +113,24 @@ def main():
       
       # if more than one spectrum, make sumspectrum
       if len(groupspectra) > 1:
-        sp = gcmstoolbox.sumspectrum(*groupspectra, name="C" + str(c))
+        sp = gcmstoolbox.sumspectrum(*groupspectra, name="")
       else:
         sp = groupspectra[0]
           
-      # TODO rebuild the spectra metadata (and change for single spectra things)
-      # TODO make resumé!
+      # rebuild the spectra metadata (and change for single spectra things)
+      name = []
+      comments = []
+      for s in groupspectra:
+        name.append(s['Name'])
+        comments.append(s['Comments'])
+      
+      if options.elinc:
+        elincize(sp, "C" + str(c), name, comments)
+      else:
+        sp['Name'] = "C" + str(c) + " [ " + " | ".join(name) + " ] " + sp['Name']
+        sp['Comments'] = "RI=" + str(sp['RI']) + " " + " | ".join(comments)
+
+      # TODO make report!
       
       # write spectrum
       gcmstoolbox.writespectrum(fh, sp, options.verbose)
@@ -128,6 +141,69 @@ def main():
         gcmstoolbox.printProgress(i, j)
         
 
+
+
+def elincize(sp, prefix, names, comments, verbose = False):
+  # special formatting for ELinC data
+  # 1. short sample names
+  
+  short = { "BLK0000": "BLA",
+            "BLK0002": "MAN",
+            "BLK0005": "PIC",
+            "BLK0007": "SEE",
+            "BLK0008": "COL",
+            "BLK0009": "ABI",
+            "BLK0012": "MAS",
+            "BLK0013": "GAM",
+            "BLK0014": "ELE",
+            "BLK0017": "KAU",
+            "BLK0026": "COP",
+            "BLK0031": "STI",
+            "BLK0032": "SUM",
+            "BLK0040": "TUN",
+            "BLK0045": "EAF",
+            "BLK0048": "SA2",
+            "BLK0065": "HCN",
+            "BLK0066": "HCF",
+            "BLK0067": "CON",
+            "BLK0070": "MAD"
+          }
+  
+  # 2. split the spectrum names in reusable lists
+  specno = []
+  meas = []
+  samples = set()
+  aging = set()
+  color = set()
+  temp = set()
+  
+  for name in names:
+    parts = name.split(' ')
+    specno.append(parts[0])
+    meas.append(parts[2])
+    
+    parts = parts[2].split('-')
+    samples.add(parts[0])
+    aging.add(parts[2][:-1])
+    color.add(parts[2][-1:])
+    temp.add(parts[3])
+  
+  samples2 = set()
+  for x in samples:
+    if x in short.keys():
+      samples2.add(short[x])
+    else:
+      samples2.add(x)
+
+  # 3. update spectrum sp
+  sp['Name'] = ( prefix + " " + 
+                 "-".join(sorted(samples2)) + 
+                 " D=" + "-".join(sorted(aging)) + 
+                 " C=" + "-".join(sorted(color)) +
+                 " T=" + "-".join(sorted(temp)) +
+                 " RI=" + sp['RI']
+               )
+  sp['Comments'] += " " + " | ".join(names).replace("=", "")
 
 
     

@@ -188,12 +188,16 @@ def sumspectrum(*spectra, name="sum"):
   else:
     ri = 0
     
+  # delta RI
+  d = max(rilist) -  min(rilist)
+    
   # output a very basic spectrum: name, RI (if available), numpeaks and xydata
   sp = {}
   sp['Name'] = name
   if ri != 0:
     sp['Name'] += " RI=" + str(round(ri,2))
     sp['RI'] = str(round(ri,2))
+    sp['Comments'] = "RI=" + str(round(ri,2)) + " dRI=" + str(round(d,2))
   sp['Num Peaks'] = len(xysum)
   sp['xydata'] = xysum
   
