@@ -12,7 +12,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (14 Dec 2016) *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (19 Dec 2016) *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* FILTER                                                                      *")
@@ -23,7 +23,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] GROUP_JSON_FILE"
-  parser = OptionParser(usage, version="%prog 0.2")
+  parser = OptionParser(usage, version="%prog 0.3")
   parser.add_option("-v", "--verbose",    help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile",    help="Output file name", action="store", dest="outfile", type="string")
   group = OptionGroup(parser, "CRITERIUM 1", "Filter out groups based on group number")
@@ -147,26 +147,48 @@ def main():
   ### CRITERIUM 3: RUBBISH PEAK SEARCH
   if c3:
     print("\nCRITERIUM 3: remove groups with m/z value " + ", ".join(str(m) for m in options.mass))
+    
+    # make a list of all spectra to retrieve
+    splist = []
+    for c in list(candidates):
+      splist.extend(groups[c]['spectra'])
+      
+    # read spectra from msp file
+    print("  Retrieve spectra from the msp file")
+    spectra = {}
+    if not options.verbose:
+      i = 0
+      j = len(splist)
+      gcmstoolbox.printProgress(i, j)
+    with open(options.source,'r') as fh:
+      while True:
+        sp = gcmstoolbox.readspectrum(fh, verbose=options.verbose, match=splist)
+        if sp == "eof":
+          break
+        elif sp != "no match":  # in other words: when we found a matching spectrum
+          spectra[sp['Name']] = sp
+          # progress bar
+          if not options.verbose: 
+            i += 1
+            gcmstoolbox.printProgress(i, j)
+    
+    # process candidates
+    print("  Process group spectra")
     if not options.verbose: 
       i = 0
       j = len(candidates)
       gcmstoolbox.printProgress(i, j)
     for c in list(candidates):
       # read the spectra in this group
-      splist = []
-      with open(options.source,'r') as fh:   #we'll open the file probably a lot of times...
-        while True:
-          sp = gcmstoolbox.readspectrum(fh, match=list(groups[c]["spectra"]))
-          if sp == "eof":
-            break
-          elif sp != "no match":  # in other words: when we found a matching spectrum
-            splist.append(sp)
+      groupspectra = []
+      for sp in groups[c]['spectra']:
+        groupspectra.append(spectra[sp])
       
       # if more than one spectrum, make sumspectrum
-      if len(splist) > 1:
-        sp = gcmstoolbox.sumspectrum(*splist)
+      if len(groupspectra) > 1:
+        sp = gcmstoolbox.sumspectrum(*groupspectra)
       else:
-        sp = splist[0]
+        sp = groupspectra[0]
         
       # check masses
       remove = False     
@@ -187,7 +209,6 @@ def main():
       if not options.verbose: 
         i += 1
         gcmstoolbox.printProgress(i, j)
-      
       
     if options.verbose: 
       print("candidates for removal:")
