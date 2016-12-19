@@ -6,13 +6,14 @@ import os
 from glob import glob
 from optparse import OptionParser, OptionGroup
 import json
+import csv
 import gcmstoolbox
 
 
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (15 Dec 2016) *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (19 Dec 2016) *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* COMPONENTLIB                                                                *")
@@ -23,7 +24,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] SOURCE_MSP_FILE GROUP_JSON_FILE"
-  parser = OptionParser(usage, version="%prog 0.2")
+  parser = OptionParser(usage, version="%prog 0.3")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-c", "--cnumber",  help="Start number for component numbers", action="store", dest="c", type="int" , default=1)
   parser.add_option("-p", "--preserve", help="Preserve group numbers", action="store_true", dest="preserve", default=False)
@@ -95,20 +96,30 @@ def main():
   
   # stdOut
   print("\nBuilding component library")
+  
   i = 0  # we'll use this both for the progress bar and for the component number (i + options.c, if options.preserve is false)
+  report = []
+  
   if not options.verbose: 
     j = len(groups.keys())
     gcmstoolbox.printProgress(i, j)
   
   with open(options.outfile,'w') as fh:
     for g in sorted(int(x) for x in groups.keys()):
+      # init
+      groupspectra = []
+      name = []           # for sum spectrum
+      comments = []       # for sum spectrum
+      spectra = []        # for cvs report
+      measurements = []   # for cvs report
+      
       # group or component numbering:
       if not options.preserve: c = i + options.c
       else:                    c = g
       
       # collect the spectra
-      groupspectra = []
       for s in groups[str(g)]['spectra']:
+        if not options.elinc: spectra.append(s)
         groupspectra.append(spectra.pop(s))
       
       # if more than one spectrum, make sumspectrum
@@ -118,19 +129,20 @@ def main():
         sp = groupspectra[0]
           
       # rebuild the spectra metadata (and change for single spectra things)
-      name = []
-      comments = []
       for s in groupspectra:
         name.append(s['Name'])
         comments.append(s['Comments'])
+        if not options.elinc: measurements.append(s['Source'])
       
       if options.elinc:
-        elincize(sp, "C" + str(c), name, comments)
+        spectra, measurements = elincize(sp, "C" + str(c), name, comments)
       else:
         sp['Name'] = "C" + str(c) + " [ " + " | ".join(name) + " ] " + sp['Name']
         sp['Comments'] = "RI=" + str(sp['RI']) + " " + " | ".join(comments)
-
-      # TODO make report!
+        
+      # report things
+      reportline = ["C" + str(c), "G" + str(g), " ".join(spectra), measurements]
+      report.append(reportline)
       
       # write spectrum
       gcmstoolbox.writespectrum(fh, sp, options.verbose)
@@ -140,6 +152,33 @@ def main():
         i += 1
         gcmstoolbox.printProgress(i, j)
         
+  print("Wrote " + options.outfile)
+  
+        
+  ### MAKE SUM SPECTRA
+  
+  print("\nGenerating report")
+  
+  # compile a list of all measurements
+  allmeas = set()
+  for line in report:
+    allmeas.update(line[3])
+  
+  # build the measurement grid
+  for line in report:
+    match = line.pop()
+    for m in sorted(allmeas):
+      if m in match: line.append("Y")
+      else:          line.append(" ")
+  
+  # write report file
+  with open(options.outfile + '.csv', 'w', newline='') as fh:
+    mkreport = csv.writer(fh, dialect='excel')
+    for line in report:
+      mkreport.writerow(line)
+
+
+
 
 
 
@@ -148,7 +187,8 @@ def elincize(sp, prefix, names, comments, verbose = False):
   # 1. short sample names
   
   short = { "BLK0000": "BLA",
-            "BLK0002": "MAN",
+            "BLK0002": "LAR",
+            "BLK0004": "MAN",
             "BLK0005": "PIC",
             "BLK0007": "SEE",
             "BLK0008": "COL",
@@ -204,6 +244,11 @@ def elincize(sp, prefix, names, comments, verbose = False):
                  " RI=" + sp['RI']
                )
   sp['Comments'] += " " + " | ".join(names).replace("=", "")
+  
+  # 4. update names and spectra for cvs report
+  meas = list(set(meas)) #remove duplicates
+  return list(sorted(specno), sorted(meas))
+  
 
 
     
