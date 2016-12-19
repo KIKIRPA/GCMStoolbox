@@ -24,13 +24,12 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] SOURCE_MSP_FILE GROUP_JSON_FILE"
-  parser = OptionParser(usage, version="%prog 0.3")
+  parser = OptionParser(usage, version="%prog 0.4")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-c", "--cnumber",  help="Start number for component numbers", action="store", dest="c", type="int" , default=1)
   parser.add_option("-p", "--preserve", help="Preserve group numbers", action="store_true", dest="preserve", default=False)
   parser.add_option("-e", "--elinc",    help="Special formatting for ELinC data", action="store_true", dest="elinc", default=False)
   parser.add_option("-o", "--outfile",  help="Output file name [default: componentlib.msp]", action="store", dest="outfile", type="string", default="componentlib.msp")
-  parser.add_option("-r", "--report",   help="Make a report in CSV", action="store", dest="csvfile", type="string")
   (options, args) = parser.parse_args()
 
   ### ARGUMENTS
@@ -108,10 +107,10 @@ def main():
     for g in sorted(int(x) for x in groups.keys()):
       # init
       groupspectra = []
-      name = []           # for sum spectrum
-      comments = []       # for sum spectrum
-      spectra = []        # for cvs report
-      measurements = []   # for cvs report
+      name = []            # for sum spectrum
+      comments = []        # for sum spectrum
+      csvSpectra = []      # for cvs report
+      csvMeasurements = [] # for cvs report
       
       # group or component numbering:
       if not options.preserve: c = i + options.c
@@ -119,7 +118,7 @@ def main():
       
       # collect the spectra
       for s in groups[str(g)]['spectra']:
-        if not options.elinc: spectra.append(s)
+        if not options.elinc: csvSpectra.append(s)
         groupspectra.append(spectra.pop(s))
       
       # if more than one spectrum, make sumspectrum
@@ -132,16 +131,16 @@ def main():
       for s in groupspectra:
         name.append(s['Name'])
         comments.append(s['Comments'])
-        if not options.elinc: measurements.append(s['Source'])
+        if not options.elinc: csvMeasurements.append(s['Source'])
       
       if options.elinc:
-        spectra, measurements = elincize(sp, "C" + str(c), name, comments)
+        csvSpectra, csvMeasurements = elincize(sp, "C" + str(c), name, comments)
       else:
         sp['Name'] = "C" + str(c) + " [ " + " | ".join(name) + " ] " + sp['Name']
         sp['Comments'] = "RI=" + str(sp['RI']) + " " + " | ".join(comments)
         
       # report things
-      reportline = ["C" + str(c), "G" + str(g), " ".join(spectra), measurements]
+      reportline = ["C" + str(c), "G" + str(g), " ".join(csvSpectra), csvMeasurements]
       report.append(reportline)
       
       # write spectrum
@@ -152,7 +151,7 @@ def main():
         i += 1
         gcmstoolbox.printProgress(i, j)
         
-  print("Wrote " + options.outfile)
+  print("  --> Wrote " + options.outfile)
   
         
   ### MAKE SUM SPECTRA
@@ -174,8 +173,11 @@ def main():
   # write report file
   with open(options.outfile + '.csv', 'w', newline='') as fh:
     mkreport = csv.writer(fh, dialect='excel')
+    mkreport.writerow(["component", "group", "spectra"] + sorted(allmeas))
     for line in report:
       mkreport.writerow(line)
+      
+  print("  --> Wrote " + options.outfile + ".csv\n")
 
 
 
@@ -247,7 +249,7 @@ def elincize(sp, prefix, names, comments, verbose = False):
   
   # 4. update names and spectra for cvs report
   meas = list(set(meas)) #remove duplicates
-  return list(sorted(specno), sorted(meas))
+  return sorted(specno), sorted(meas)
   
 
 
