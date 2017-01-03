@@ -12,13 +12,13 @@ import gcmstoolbox
 spectra = {}  #dictionary of all spectra with the groups to which they belong
 groups = {}   #dictionary of groups
 doubles = {}  #dictionary of groups of possibly the same component
-i = 1         #group or component counter
+i = 1         #group counter
 j = 1         #spectra counter
 
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (7 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (3 Jan 2017)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* GROUP:                                                                      *")
@@ -34,7 +34,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] MSPEPSEARCH_OUTPUT"
-  parser = OptionParser(usage, version="%prog 0.6.1")
+  parser = OptionParser(usage, version="%prog 1.0")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile",  help="Output file name", action="store",      dest="outfile", type="string")
   parser.add_option("-r", "--riwindow", help="Apply RI window (default [0]: no RI filter)",  action="store", dest="riwindow", type="float", default=0)
@@ -42,7 +42,7 @@ def main():
   parser.add_option("-D", "--discard",  help="Discard hits without RI",  action="store_true", dest="discard", default=False)
   parser.add_option("-m", "--match",    help="Apply RI window (default [0]: no RI filter)", action="store", dest="minmf", type="int", default=0)
   parser.add_option("-n", "--reverse",  help="Apply RI window (default [0]: no RI filter)", action="store", dest="minrmf", type="int", default=0)
-  parser.add_option("-Y", "--merge",    help="Merge all overlapping groups into a single component", action="store_true", dest="merge", default=False)
+  parser.add_option("-Y", "--merge",    help="Merge all overlapping groups into a single group", action="store_true", dest="merge", default=False)
   (options, args) = parser.parse_args()
 
   ### ARGUMENTS
@@ -72,7 +72,7 @@ def main():
   # read mspepsearch results and create the spectra dictionary (couples of "spectrum name : group number") --> spectra dict
   readmspepsearch(inFile, options.riwindow, options.rifactor, options.discard, options.minmf, options.minrmf, options.merge, options.verbose)
   # find groups --> groups dict
-  groupByComponent(options.verbose)
+  groupSpectra(options.verbose)
   # merge groups that may be the same component (non-crosslinked matches)
   if options.merge:
     mergeGroups(options.verbose)
@@ -84,16 +84,16 @@ def main():
   print("\nWritten " + outFile)
   
   print("\nSTATISTICS")
-  print("  - Number of mass spectra:      " + str(j - 1))
-  print("  - Number of groups/components: " + str(i - 1))
+  print("  - Number of mass spectra: " + str(j - 1))
+  print("  - Number of groups:       " + str(i - 1))
   if not options.merge:
     print("  - Groups that may be the same component: (use -Y to merge)")
     #doubles_sortedkeys = sorted(doubles.keys())
     for key in sorted(doubles.keys()):
       print("      - " + ", ".join(str(d) for d in sorted(doubles[key])))
   else:
-    print("  - Number of groups/components after merging non-crosslinked matches: " + str(len(groups)))
-  print("  - Number of hits per group/component:")
+    print("  - Number of groups after merging non-crosslinked matches: " + str(len(groups)))
+  print("  - Number of hits per group:")
   groupStatistics(options.verbose)  
   
 
@@ -186,7 +186,7 @@ def processHits(hits, unknown, merge = False, verbose = False):
   foundgroups = []
   for hit in hits:
     if hit in spectra:
-      if verbose: print("   -> hit: " + hit +  " -> C" + str(spectra[hit]))
+      if verbose: print("   -> hit: " + hit +  " -> G" + str(spectra[hit]))
       if spectra[hit] not in foundgroups:
         foundgroups.append(spectra[hit])
     else:
@@ -195,13 +195,13 @@ def processHits(hits, unknown, merge = False, verbose = False):
   if len(foundgroups) == 0:
     group = i
     i = i + 1
-    if verbose: print("   new component [C" + str(group) + "]")
+    if verbose: print("   new group [G" + str(group) + "]")
   elif len(foundgroups) == 1:
     group = foundgroups[0]
-    if verbose: print("   existing component [C" + str(group) + "]")
+    if verbose: print("   existing group [G" + str(group) + "]")
   else:
     # multiple possible groups; try to compile a list of sets
-    # this is not fully waterproof, because it searches only on the lowest component number
+    # this is not fully waterproof, because it searches only on the lowest group number
     # but probably works in most cases?
     if min(foundgroups) not in doubles:
       doubles[min(foundgroups)] = set(foundgroups)
@@ -214,9 +214,9 @@ def processHits(hits, unknown, merge = False, verbose = False):
     else:
       group = min(foundgroups)  
     if verbose: 
-      print("   !! multiple matched components: " + ', '.join(str(x) for x in foundgroups) + " (Please check!)")
-      if not merge: print("      non-attributed spectra are now C" +  str(group))
-      else:         print("      ALL spectra are now (re)attributed to C" +  str(group) + " (merge level 1)")
+      print("   !! multiple matched groups: " + ', '.join(str(x) for x in foundgroups) + " (Please check!)")
+      if not merge: print("      non-attributed spectra are now G" +  str(group))
+      else:         print("      ALL spectra are now (re)attributed to G" +  str(group) + " (merge level 1)")
 
   for hit in hits:
     if (hit not in spectra) or merge:   # if merge=true :  first level of merging
@@ -225,7 +225,7 @@ def processHits(hits, unknown, merge = False, verbose = False):
   
   
   
-def groupByComponent(verbose = False):
+def groupSpectra(verbose = False):
   print("\nGrouping spectra ...")
   global spectra, groups, i, j
   

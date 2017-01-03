@@ -12,7 +12,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (7 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (3 Jan 2017)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* EVALGROUP                                                                   *")
@@ -24,7 +24,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] GROUP(S)"
-  parser = OptionParser(usage, version="%prog 0.3")
+  parser = OptionParser(usage, version="%prog 1.0")
   parser.add_option("-v", "--verbose",    help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-s", "--sourcefile", help="Source msp file name [default: converted.msp]", action="store",  dest="sourcefile", type="string", default="converted.msp")
   parser.add_option("-g", "--groupfile",  help="Group json file name [default: groups[_merged].json]", action="store",  dest="groupsfile", type="string")
@@ -112,7 +112,7 @@ def main():
   with open(outFile,'w') as fh:
     for group, spectra in groupdict.items():
       sumspectra = [] #list of spectra that will be summed
-      prefix = "C" + str(group) + " "
+      prefix = "G" + str(group) + " "
       
       # write individual spectra
       for key in spectra:

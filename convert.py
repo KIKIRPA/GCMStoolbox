@@ -11,7 +11,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (7 Dec 2016)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (3 Jan 2017)  *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* CONVERT:                                                                    *")
@@ -27,7 +27,7 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] AMDIS_FILES"
-  parser = OptionParser(usage, version="%prog 0.6.2")
+  parser = OptionParser(usage, version="%prog 1.0")
   parser.add_option("-v", "--verbose", help="Be very verbose", action="store_true", dest="verbose", default=False)
   parser.add_option("-o", "--outfile", help="Output file name", action="store", dest="outfile", type="string")
   parser.add_option("-a", "--append",  help="Append to existing output file", action="store_true", dest="append",  default=False)
