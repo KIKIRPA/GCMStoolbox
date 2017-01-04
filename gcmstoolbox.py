@@ -7,20 +7,19 @@ def main():
   print(  "GCMStoolbox")
   print(  "  This file contains common functions for the GCMStoolbox scripts,")
   print(  "  and cannot be used directly. \n")
+  
+
+# GCMStoolbox version
+version = "1.9.0"
+date    = " 4 Jan 2017"  #12 chars!
 
 
 
-def readspectrum(fh, i = 0, match = [], norm = False, elu = False, eluAll = False, verbose = False):
+def readspectrum(fh, i = 0, match = [], norm = 999, elu = False, eluAll = False, verbose = False):
   # we expect that each spectrum starts with 'name' (case insensitive)
   # we use this as a trigger to start recording the metadata, reading the filehandle line by line
   # once we read 'num peaks' we start collecting the spectrum itself, counting the number
   # once numpeaks is reached, we return the data as a dictonary
-  
-  # TODO:
-  #  1.  normalise when norm var is true
-  #  2.  decompose ELU name
-  #  3.  eluAll == False => OR1
-  #  4.  change readspectrum arguments in scripts
   
   for line in fh: 
     if line.casefold().startswith('name'):
@@ -28,16 +27,25 @@ def readspectrum(fh, i = 0, match = [], norm = False, elu = False, eluAll = Fals
       spectrum = {'Name': line.split(':', 1)[1].strip()}  #define a dictionary
       readmeta = True
       readdata = False
-      xy = {}
-      
-      if elu:
-        eluNameParts = spectrum['Name'].split('|')
-        for p in eluNameParts:
-          if p.startswith('RI'): 
+      xy = {}       
       
       #match: list of spectrum names: only return spectrum for those, "no match" for others
       if (len(match) > 0) and (spectrum["Name"] not in match):
         return "no match"
+      
+      if elu:
+        # example "|SC15|CN2|MP1-MODN:81(%84.3)|AM25664|PC32|SN27|WD5.4|TA4.5|TR14.0|FR12-20|RT2.1366|MN2.7|RA0.00403|IS394917|XN425813|RI740.7|MO4: 81 79 77 96|EW1-0|FG0.843|TN3.585|OR1|NT1"
+        eluNameParts = spectrum['Name'].split('|')
+        for p in eluNameParts:
+          if p.startswith('RI'): spectrum['RI'] = p[2:]  # retention index
+          if p.startswith('RT'): spectrum['RT'] = p[2:]  # retention time
+          if p.startswith('IS'): spectrum['IS'] = p[2:]  # integrated signal (deconvoluted peakarea)
+          if p.startswith('RA'): spectrum['RA'] = p[2:]  # relative amount to TIC
+          if p.startswith('OR'): spectrum['OR'] = p[2:]  # order number of Amdis models (starts with 1)
+        # don't proceed if this is not the first order model (and if eluAll is False)
+        if (not eluAll) and (spectrum['OR'] != "1"):
+          return "no match"   
+        spectrum["Comments"] = "RI=" + spectrum['RI'] + " RT=" + spectrum['RT'] + " IS=" + spectrum['IS'] + " RA=" + spectrum['RA'] + " OR=" + spectrum['OR']
       
       #verbose
       if verbose:
@@ -56,8 +64,8 @@ def readspectrum(fh, i = 0, match = [], norm = False, elu = False, eluAll = Fals
           readmeta = False
           readdata = True
           
-        elif not elu: #all metadata in ELU files is contained within the name string!
-          if nextline.casefold().startswith('cas#') and not elu:
+        elif readmeta and not elu: #all metadata in ELU files is contained within the name string! if elu -> skip these lines until the NumPeaks line
+          if nextline.casefold().startswith('cas#'):
             #NOTE: NIST seems to store sometimes CAS# and NIST# on the same line, CAS# first and then NIST# 
             #      separated with semicolon. I haven't seen AMDIS doing this. I hope this is the only case?
             if 'nist#' in nextline.casefold():
@@ -66,8 +74,8 @@ def readspectrum(fh, i = 0, match = [], norm = False, elu = False, eluAll = Fals
               spectrum["NIST#"] = parts[1].split(':', 1)[1].strip()
             else:
               spectrum["CAS#"]  = nextline.split(':', 1)[1].strip()
-      
-          if readmeta:     #all metadata
+          
+          else:     #all other metadata
             #NOTE: I assume that each metadata field is restrained to a single line; I haven't seen any
             #      multiline field so far. This code only supports single lines!
             #NOTE: We don't support multiple "Synon" tags as in the NIST MSP files
@@ -100,19 +108,13 @@ def readspectrum(fh, i = 0, match = [], norm = False, elu = False, eluAll = Fals
           
           #countdown numpeaks and prepare to end this function
           numpeaks = numpeaks - len(couples)
-          if numpeaks == 0:
-            #one more thing: is y normalised?
-            #NIST normalises to 999, AMDIS seems to normalise in most cases to the highest _certain_ peak (999)
-            #if normalised to 1000, just change this value(s) to 999 (very small error)
-            #if not normalised, we won't touch it
-            if max(xy.values()) == 1000:
-              for x, y in xy.items():
-                if y == 1000: xy[x] = 999 
-              if verbose: print("     ! 1000 -> 999...") 
-            elif max(xy.values()) == 999:
-              pass
-            else:
-              if verbose: print("      ! Spectrum is unnormalised. Max Y: " + str(max(xy.values())) + " Did not touch...")      
+          if numpeaks == 0:            
+            #normalisation
+            if norm > 0: 
+              normalise(xy, norm, verbose)
+            elseif (max(xy.values()) != 999) and verbose:
+              print("      ! Spectrum is unnormalised. Max Y: " + str(max(xy.values())) + " Did not touch...")
+      
             #add series to the spectrum dictionary    
             spectrum['xydata'] = xy
             if i != 0: spectrum['DB#'] = str(i)
@@ -122,6 +124,21 @@ def readspectrum(fh, i = 0, match = [], norm = False, elu = False, eluAll = Fals
   
   # if all lines are processed
   return "eof"
+  
+  
+
+def normalise(xydata, norm = 999, verbose = False):
+  # normalises the spectrum to the highest value of normval (999)
+  
+  maxy = max(xydata.values())
+  
+  if maxy != norm:
+    if verbose: print("      - Max Y value: " + str(maxy) + " -> normalise...")
+    for x, y in xydata.items():
+      xydata[x] = int(y * norm / maxy)
+      
+  #return xydata  # this dict is called by reference? no need to return it?
+  
 
 
 
