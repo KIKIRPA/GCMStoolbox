@@ -4,7 +4,6 @@
 import sys
 import os
 import ntpath
-import json
 from collections import OrderedDict
 from glob import glob
 from optparse import OptionParser, OptionGroup
@@ -27,9 +26,10 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] IMPORTFILE1 [IMPORTFILE2 [...]]"
+  
   parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
   parser.add_option("-v", "--verbose", help="Be very verbose [not default]", action="store_true", dest="verbose", default=False)
-  parser.add_option("-o", "--outfile", help="Output file name [default: gcmstoolbox.json]", action="store", dest="outfile", type="string", default="gcmstoolbox.json")
+  parser.add_option("-o", "--jsonout", help="JSON output file name [default: gcmstoolbox.json]", action="store", dest="jsonout", type="string", default="gcmstoolbox.json")
   parser.add_option("-a", "--append",  help="Append to existing json file [not default]", action="store_true", dest="append",  default=False)
   
   group = OptionGroup(parser, "IMPORT OPTIONS", "Special formatting options for the ELinC project")
@@ -53,7 +53,7 @@ def main():
   # make a list of input files
   inFiles = []
   if len(args) == 0:
-    print(" !! No imput files?\n")
+    print(" !! No import files?\n")
     exit()
   else:
     for arg in args:
@@ -63,26 +63,20 @@ def main():
     if os.path.isdir(inFile):
       inFiles.remove(inFile)   #remove directories
     else:
-      if options.verbose: print(" - input file: " + inFile)
+      if options.verbose: print(" - import file: " + inFile)
 
   # number of inFiles; must not be 0
   numInFiles = len(inFiles)
   if numInFiles == 0:
-    print(" !! No imput files?\n")
+    print(" !! No import files?\n")
     exit()
   else:
-    if options.verbose: print(" => " + str(numInFiles) + " input files")
+    if options.verbose: print(" => " + str(numInFiles) + " import files")
 
-  if options.verbose: print(" => output file: " + options.outfile + (" [append]" if options.append else ""))
+  if options.verbose: print(" => JSON output file: " + options.jsonout + (" [append]" if options.append else ""))
  
   if options.append:
-    if not os.path.isfile(options.outfile):
-      print("  !! " + options.outfile + " was not found.\n")
-      exit()
-
-    # read file
-    with open(options.outfile,'r') as fh:
-      data = json.load(fh, object_pairs_hook=OrderedDict)
+    data = gcmstoolbox.openJSON(options.jsonout)
 
     # check if it is a spectra file (cannot append to groups file)
     if data['info']['mode'] != "spectra": 
@@ -148,12 +142,10 @@ def main():
         
   ### WRITE SPECTRA JSON 
   
-  # write file
   print("\nWriting data file")
-  with open(options.outfile,'w') as fh:
-    fh.write(json.dumps(data, indent=2))
+  saveJSON(data, options.jsonout)
   
-  print(" => Finalised. Wrote " + options.outfile + "\n")
+  print(" => Finalised. Wrote " + options.jsonout + "\n")
   exit()
 
 
@@ -297,6 +289,7 @@ def eluFile(spectrum, inFile, allModels = False):
     elif p.startswith('RT'): spectrum['RT'] = p[2:]  # retention time
     elif p.startswith('IS'): spectrum['IS'] = p[2:]  # integrated signal (deconvoluted peakarea)
     elif p.startswith('RA'): spectrum['RA'] = p[2:]  # relative amount to TIC
+    elif p.startswith('SN'): spectrum['SN'] = p[2:]  # signal to noise ratio
     elif p.startswith('OR') and allModels:
                              spectrum['OR'] = p[2:]  # order number of Amdis models (starts with 1)
   
@@ -305,6 +298,7 @@ def eluFile(spectrum, inFile, allModels = False):
   spectrum['Name'] = ( "S" + spectrum['DB#'] 
                        + ((" RI=" + spectrum['RI']) if 'RI' in spectrum else "")
                        + ((" IS=" + spectrum['IS']) if 'IS' in spectrum else "")
+                       + ((" SN=" + spectrum['SN']) if 'SN' in spectrum else "")
                        + " " + os.path.splitext(spectrum['Source'])[0]
                      )
 
@@ -347,11 +341,11 @@ def elincize(spectrum, inFile, verbose = False):
   spectrum['Name']   = ( "S" + spectrum['DB#'] 
                          + ((" RI=" + spectrum['RI']) if 'RI' in spectrum else "")
                          + ((" IS=" + spectrum['IS']) if 'IS' in spectrum else "")
+                         + ((" SN=" + spectrum['SN']) if 'SN' in spectrum else "")
                          + " " + spectrum['Sample']
                        )
 
 
-  
-    
+
 if __name__ == "__main__":
   main()

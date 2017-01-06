@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import json
+import time
 from collections import OrderedDict
 
 
@@ -146,6 +148,23 @@ def printProgress (iteration, total, prefix = '', suffix = '', decimals = 1, bar
     sys.stdout.flush()
 
 
+def openJSON(jsonin):
+  if not os.path.isfile(jsonin):
+    print("  !! " + jsonin + " was not found.\n")
+    exit()
+  with open(jsonin,'r') as fh:
+    data = json.load(fh, object_pairs_hook=OrderedDict)
+  return data
+    
+
+    
+def saveJSON(data, jsonout):
+  #backup
+  if os.path.isfile(jsonout):
+    os.rename(jsonout, jsonout + time.strftime("%Y%m%d%H%M%S"))
+  #safe new JSON file
+  with open(jsonout,'w') as fh:
+    fh.write(json.dumps(data, indent=2))
 
     
 if __name__ == "__main__":

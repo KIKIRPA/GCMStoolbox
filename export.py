@@ -4,7 +4,6 @@
 import sys
 import os
 import ntpath
-import json
 from collections import OrderedDict
 from glob import glob
 from optparse import OptionParser, OptionGroup
@@ -25,10 +24,12 @@ def main():
 
   ### OPTIONPARSER
   
-  usage = "usage: %prog [options] OUTFILE"
+  usage = "usage: %prog [options] MSP_FILE"
+  
   parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
   parser.add_option("-v", "--verbose", help="Be very verbose [not default]", action="store_true", dest="verbose", default=False)
-  parser.add_option("-i", "--infile",  help="Input file name [default: gcmstoolbox.json]", action="store", dest="infile", type="string", default="gcmstoolbox.json")
+  parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
+  parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   parser.add_option("-m", "--mode",    help="Mode: auto|spectra|group|components [default:auto]", action="store", dest="mode", type="string", default="gcmstoolbox.json")
   
   (options, args) = parser.parse_args()
@@ -39,34 +40,32 @@ def main():
   
   if options.verbose: print("Processing import files and options")
 
-  # check output file
+  # check MSP output file
   if len(args) == 0:
-    print("  !! No output file name given\n")
+    print("  !! No MSP file name given\n")
     exit()
   elif len(args) != 1:
-    print("  !! Too many arguments. A single output file name can be given.\n")
+    print("  !! Too many arguments. Only one MSP file name can be created.\n")
     exit()
   else:
-    outFile = args[0]
+    mspfile = args[0]
 
-  # check and read input file
-  if not os.path.isfile(options.infile):
-    print("  !! " + options.infile + " was not found.\n")
-    exit()
-  with open(options.infile,'r') as fh:
-    data = json.load(fh, object_pairs_hook=OrderedDict)
+  # check and read JSON input file
+  data = gcmstoolbox.openJSON(options.jsonin)
+    
+  # json output 
+  if options.jsonout = None: 
+    options.jsonout = options.jsonin
 
   if options.verbose:
-    print(" => GCMStoolbox file: " + options.infile)
-    print(" => output msp file:  " + outFile + "\n")
-    
-  # add administration to specta[0] (info) TODO
-  #data['info']['cmds'].append(" ".join(sys.argv))
+    print(" => JSON input file: " + options.jsonin)
+    print(" => Output msp file:  " + mspfile + "\n")
 
 
   ### WRITE FILE
+  
   print("Processing mass spectra")
-  with open(outFile, "w") as fh:
+  with open(mspfile, "w") as fh:
     
     # mode: SPECTRA
     # init progress bar
@@ -82,8 +81,17 @@ def main():
       if not options.verbose: 
         j += 1
         gcmstoolbox.printProgress(j, k)  
-        
-  print("\nFinalised. Wrote " + outFile + "\n")
+  
+  print("\nFinalised. Wrote " + mspfile + "\n")  
+
+  
+  ### TRACE IN JSON FILE
+  
+  if options.verbose: print("Put a trace in the JSON output file: " + options.jsonout + "\n")
+  data = gcmstoolbox.openJSON(options.jsonin)     # reread the file to be sure we haven't accidentally messed up the data
+  data['info']['cmds'].append(" ".join(sys.argv)) # put a trace in the data file
+  saveJSON(data, options.jsonout)                 # backup and safe json
+   
   exit()
     
   
@@ -95,7 +103,7 @@ def writespectrum(fh, name, sp, verbose = False):
 
   # build comments, while removing fields that don't belong in the msp
   comments = ""
-  list = ['Sample', 'Resin', 'AAdays', 'Color', 'PyTemp', 'OR', 'IS', 'RA']
+  list = ['Sample', 'Resin', 'AAdays', 'Color', 'PyTemp', 'OR', 'IS', 'RA', 'SN']
   for l in list:
     val = sp.pop(l, False)
     if val:
