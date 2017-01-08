@@ -3,16 +3,15 @@
 
 import sys
 import os
-from glob import glob
+from collections import OrderedDict
 from optparse import OptionParser, OptionGroup
-import json
 import gcmstoolbox
 
 
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (3 Jan 2017)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (" + gcmstoolbox.date + ") *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* FILTER                                                                      *")
@@ -22,72 +21,62 @@ def main():
 
   ### OPTIONPARSER
   
-  usage = "usage: %prog [options] GROUP_JSON_FILE"
-  parser = OptionParser(usage, version="%prog 1.0")
+  usage = "usage: %prog COMMAND [options]"   #\n\nPossible commands are:\n - make\n - list\n - activate\n - deactivate\n\n"
+  
+  parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
   parser.add_option("-v", "--verbose",    help="Be very verbose",  action="store_true", dest="verbose", default=False)
-  parser.add_option("-o", "--outfile",    help="Output file name", action="store", dest="outfile", type="string")
+  parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
+  parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
+  
   group = OptionGroup(parser, "CRITERIUM 1", "Filter out groups based on group number")
   group.add_option("-g", "--group",       help="Group number [default: 0], multiple instances can be defined", action="append", dest="group", type="string")
   parser.add_option_group(group)
+  
   group = OptionGroup(parser, "CRITERIUM 2", "Filter out groups on the number of spectra in a group")
   group.add_option("-c", "--count",      help="Minimal number of spectra per group", action="store", dest="count", type="int")
   parser.add_option_group(group)
+  
   group = OptionGroup(parser, "CRITERIUM 3", "Filter out groups based on the presence of a chosen m/z")
   group.add_option("-m", "--mass",       help="m/z value, multiple instances can be defined", action="append", dest="mass", type="int")
   group.add_option("-M", "--percent",    help="Minimal relative intensity of a m/z value [default: 90]", action="store", dest="percent", type="int", default=90)
-  group.add_option("-s", "--sourcefile", help="Data msp file name [default: converted.msp]", action="store",  dest="source", type="string", default="converted.msp")
+  group.add_option("-s", "--sum",        help="Use only the N spectra with highest signal to calculate sumspectra, 0 for all [default: 0]", action="store",  dest="n", type="int", default=0)
   parser.add_option_group(group)
+  
   (options, args) = parser.parse_args()
   
   ### ARGUMENTS
+  
+  cmd = " ".join(sys.argv)
 
   if options.verbose: print("Processing arguments...")
 
-  # input file
-  if len(args) == 0: 
-    if   os.path.isfile("groups_merged.json"): inFile = "groups_merged.json"
-    elif os.path.isfile("groups.json"):        inFile = "groups.json"
-    else: 
-      print("\n!! GROUP_JSON_FILE not found.")
-      exit()
-  elif len(args) >= 2:
-    print("\n!! There should be exactly one GROUP_JSON_FILE.")
-    exit()
-  elif os.path.isfile(args[0]):
-    inFile = args[0]
-  else:
-    print("\n!! GROUP_JSON_FILE not found.")
+  # check and read JSON input file
+  data = gcmstoolbox.openJSON(options.jsonin)
+  if data['info']['mode'] == 'spectra':
+    print("\n!! Cannot filter on ungrouped spectra.")
     exit()
     
+  # json output 
+  if options.jsonout == None: 
+    options.jsonout = options.jsonin
+
+  if options.verbose:
+    print(" => JSON input file:  " + options.jsonin)
+    print(" => JSON output file: " + options.jsonout + "\n")
     
   #criterium flags
-  c1 = False if options.group is None else True  #CRITERIUM3: group numbers to be removed
-  c2 = False if options.count is None else True  #CRITERIUM1: minimal spectrum count per group 
-  c3 = False if options.mass is None  else True  #CRITERIUM2: minimal intensity of choses m/z values
+  c1 = False if options.group is None else True  #CRITERIUM1: group numbers to be removed
+  c2 = False if options.count is None else True  #CRITERIUM2: minimal spectrum count per group 
+  c3 = False if options.mass  is None else True  #CRITERIUM3: minimal intensity of choses m/z values
 
   if not (c1 or c2 or c3):
     print("\n!! No criteria selected. Nothing to do.")
     exit()
 
-  #citerium 3 args
-  if c3:
-    # source file
-    if not os.path.isfile(options.source):
-      print("DATA FILE (msp) not found.\n")
-      exit()
-    
-  # output file
-  if options.outfile != None:
-    outFile = options.outfile
-  else:
-    outFile = os.path.splitext(os.path.basename(inFile))[0] + "_filtered" + os.path.splitext(inFile)[1]
-
     
   ### INITIALISE
-  with open(inFile,'r') as fh:    
-    groups = json.load(fh)
 
-  candidates = set(groups.keys())
+  candidates = set(data["groups"].keys())
   # candidates for removal; each criterium will remove those groups that should be kept
   # since we iterate through a set that will be smaller after each criterium, we'll do the
   # most time-consuming criteria last
@@ -95,12 +84,18 @@ def main():
   
   ### CRITERIUM 1: GROUP NUMBER
   if c1:
-    removegroups = list(str(g) for g in options.group)
-    print("\nCRITERIUM 1: remove groups by group number: " + ", ".join(removegroups))
+    removegroups = []
+    for g in options.group:
+      g = str(g).upper()
+      if not g.startswith('G'): g = "G" + g
+      removegroups.append(g)
+    
+    print("\nCRITERIUM 1: remove groups by group numbers: " + ", ".join(removegroups))
     if not options.verbose: 
       i = 0
       j = len(candidates)
       gcmstoolbox.printProgress(i, j)
+      
     for c in list(candidates):   # iterate over a copy of the set, so we can remove things from the original while iterating
       if c not in removegroups:
         candidates.discard(c)
@@ -125,8 +120,9 @@ def main():
       i = 0
       j = len(candidates)
       gcmstoolbox.printProgress(i, j)
+      
     for c in list(candidates):   # iterate over a copy of the set, so we can remove things from the original while iterating
-      if groups[c]["count"] >= options.count:  #remove from candidates = keep group
+      if data["groups"][c]["count"] >= options.count:  #remove from candidates = keep group
         candidates.discard(c)
         
       # progress bar
@@ -142,62 +138,34 @@ def main():
         print(tabulate(candidates))
 
 
-
-
   ### CRITERIUM 3: RUBBISH PEAK SEARCH
   if c3:
     print("\nCRITERIUM 3: remove groups with m/z value " + ", ".join(str(m) for m in options.mass))
-    
-    # make a list of all spectra to retrieve
-    splist = []
-    for c in list(candidates):
-      splist.extend(groups[c]['spectra'])
-      
-    # read spectra from msp file
-    print("  Retrieve spectra from the msp file")
-    spectra = {}
-    if not options.verbose:
-      i = 0
-      j = len(splist)
-      gcmstoolbox.printProgress(i, j)
-    with open(options.source,'r') as fh:
-      while True:
-        sp = gcmstoolbox.readspectrum(fh, verbose=options.verbose, match=splist)
-        if sp == "eof":
-          break
-        elif sp != "no match":  # in other words: when we found a matching spectrum
-          spectra[sp['Name']] = sp
-          # progress bar
-          if not options.verbose: 
-            i += 1
-            gcmstoolbox.printProgress(i, j)
-    
-    # process candidates
-    print("  Process group spectra")
     if not options.verbose: 
       i = 0
       j = len(candidates)
       gcmstoolbox.printProgress(i, j)
+      
     for c in list(candidates):
       # read the spectra in this group
-      groupspectra = []
-      for sp in groups[c]['spectra']:
-        groupspectra.append(spectra[sp])
+      splist = []
+      for s in data['groups'][c]['spectra']: 
+        splist.append(data['spectra'][s])
       
       # if more than one spectrum, make sumspectrum
-      if len(groupspectra) > 1:
-        sp = gcmstoolbox.sumspectrum(*groupspectra)
+      if len(splist) > 1:
+        sumsp = gcmstoolbox.sumspectrum(*splist, highest = options.n)
       else:
-        sp = groupspectra[0]
+        sumsp = splist[0]
         
       # check masses
       remove = False     
-      maxval = max(sp['xydata'].values())
+      maxval = max(sumsp['xydata'].values())
       for m in options.mass:
-        if m in sp['xydata']:
-          if sp['xydata'][m] > (maxval * 0.01 * options.percent):     #remove group
+        if m in sumsp['xydata']:
+          if sumsp['xydata'][m] > (maxval * 0.01 * options.percent):     #remove group
             if options.verbose:
-              print(" --> G" + c + " m/z=" + str(m) + " y-value=" + str(sp['xydata'][m]) + " threshold=" + str(maxval * 0.01 * options.percent))
+              print(" --> G" + c + " m/z=" + str(m) + " y-value=" + str(sumsp['xydata'][m]) + " threshold=" + str(maxval * 0.01 * options.percent))
             remove = True
 
       # final decission
@@ -219,19 +187,44 @@ def main():
     
         
   ### UPDATE GROUPS AND WRITE IT AS JSON
-  print("\nRemoving groups that do not meet the criteria...")
-  print("  - initial number of groups:       " + str(len(groups)))
-  print("  - number of groups to be removed: " + str(len(candidates)))
   
-  for c in candidates:
-    del groups[c]
-  print("  - new number of groups          : " + str(len(groups)))
+  if 'filters' not in data:
+    data['filters'] = OrderedDict()
+    f = "F1"
+  else:
+    f = "F" + str(len(data['filters']) + 1)
     
-  handle = open(outFile, "w")
-  handle.write(json.dumps(groups, indent=2))
-  handle.close()
-  print("\nWritten " + outFile + "\n")
-    
+  data['filters'][f] = OrderedDict()
+  if c1: data['filters'][f]['crit1'] = ", ".join(removegroups)
+  if c2: data['filters'][f]['crit2'] = str(options.count)
+  if c3: data['filters'][f]['crit3'] = "m/z " + ", ".join(options.mass) + "; " + str(options.percent) + "%; " + str(options.n)
+  data['filters'][f]['active'] = True
+  data['filters'][f]['out'] = candidates
+
+  print("\nFilter " + f)
+  print("  - initial number of groups:  " + str( len(data['groups']) ))
+  print("  - number of removed groups:  " + str( len(candidates) ))
+  print("  - number of retained groups: " + str( len(data['groups'] - len(candidates) )))
+
+  af = []
+  ac = set()
+  for f, filter in data['filters'].items():
+    if filter['active']:
+      af.append(f)
+      ac.extend(filter['out'])
+  
+  print("\nAll active filters (" + ", ".join(af) + ")")
+  print("  - initial number of groups:  " + str( len(data['groups']) ))
+  print("  - number of removed groups:  " + str( len(ac) ))
+  print("  - number of retained groups: " + str( len(data['groups'] - len(ac) )))
+
+  data['info']['mode'] = "filter"
+  data["info"]["cmds"].append(cmd)
+  gcmstoolbox.saveJSON(data, options.jsonout)     # backup and safe json
+  
+  print(" => Finalised. Wrote " + options.jsonout + "\n")
+  exit()
+
   
     
     
@@ -242,6 +235,7 @@ def tabulate(words, termwidth=79, pad=3):
   ncols = max(1, termwidth // width)
   nrows = (len(words) - 1) // ncols + 1
   table = []
+  
   for i in range(nrows):
     row = words[i::nrows]
     format_str = ('%%-%ds' % width) * len(row)

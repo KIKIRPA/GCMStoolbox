@@ -54,11 +54,12 @@ def main():
   data = gcmstoolbox.openJSON(options.jsonin)
     
   # json output 
-  if options.jsonout = None: 
+  if options.jsonout == None: 
     options.jsonout = options.jsonin
 
   if options.verbose:
-    print(" => JSON input file: " + options.jsonin)
+    print(" => JSON input file:  " + options.jsonin)
+    print(" => JSON output file: " + options.jsonout)
     print(" => Output msp file:  " + mspfile + "\n")
 
 
@@ -90,7 +91,7 @@ def main():
   if options.verbose: print("Put a trace in the JSON output file: " + options.jsonout + "\n")
   data = gcmstoolbox.openJSON(options.jsonin)     # reread the file to be sure we haven't accidentally messed up the data
   data['info']['cmds'].append(" ".join(sys.argv)) # put a trace in the data file
-  saveJSON(data, options.jsonout)                 # backup and safe json
+  gcmstoolbox.saveJSON(data, options.jsonout)     # backup and safe json
    
   exit()
     
@@ -134,7 +135,7 @@ def writespectrum(fh, name, sp, verbose = False):
   # write NumPeaks
   fh.write('Num Peaks: ' + str(numpeaks) + "\n")
   
-  # NIST MSP puts 5 couples on each line
+  # NIST MSP usually puts 5 couples on each line (although this is no requirement)
   # 1. iterate over full lines
   div = numpeaks // 5          # we have %div full lines
   for i in range(div):         

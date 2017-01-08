@@ -84,7 +84,7 @@ def main():
       exit()
     
     # add administration to specta[0] (info)
-    data['info']['cmds'].append(" ".join(sys.argv))
+    data['info']['cmds'].append(cmd)
     data['info']['sources'].extend(inFiles)
     
     # spectrum number counter  (remark: len(spectra) is always one count higher than the number of spectra; spectra[0] is info!)
@@ -143,7 +143,7 @@ def main():
   ### WRITE SPECTRA JSON 
   
   print("\nWriting data file")
-  saveJSON(data, options.jsonout)
+  gcmstoolbox.saveJSON(data, options.jsonout)
   
   print(" => Finalised. Wrote " + options.jsonout + "\n")
   exit()
@@ -152,9 +152,7 @@ def main():
 
 def readspectrum(fh, inFile, i = 0, norm = 999, elu = False, allModels = False, elinc=False, verbose = False):
   # we expect that each spectrum starts with 'name' (case insensitive)
-  # we use this as a trigger to start recording the metadata, reading the filehandle line by line
-  # once we read 'num peaks' we start collecting the spectrum itself, counting the number
-  # once numpeaks is reached, we return the data as a dictonary
+  # we use this as a trigger to start recording the metadata, reading the filehandle line by line  numpeaks is reached, we return the data as a dictonary
   
   elu = (os.path.splitext(inFile)[1][1:].strip().upper() == 'ELU')  # elu is True for .ELU files, False for others
     
@@ -246,6 +244,8 @@ def readspectrum(fh, inFile, i = 0, norm = 999, elu = False, allModels = False, 
           #prepare for splitting
           if nextline[-1:] == ";":      #remove ; from the end of the line (if present)
             nextline = nextline[:-1]
+          # CAUTION!!! in the NIST MS SEARCH distribution there are example files in which couples are separated with whitespace, without semicolons
+          #            NIST SEARCH MS does generate files with semicolons, but problems can occur when third party msp files are imported!!!
           
           #split into X-Y couples, separate values and append to x and y series
           #ELU files might have something extra, which we will discard

@@ -13,7 +13,7 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (3 Jan 2017)  *")
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (" + gcmstoolbox.date + ") *")
   print(  "*   Licence: GNU GPL version 3.0                                              *")
   print(  "*                                                                             *")
   print(  "* COMPONENTLIB                                                                *")
@@ -23,13 +23,14 @@ def main():
 
   ### OPTIONPARSER
   
-  usage = "usage: %prog [options] SOURCE_MSP_FILE GROUP_JSON_FILE"
-  parser = OptionParser(usage, version="%prog 1.0")
+  usage = "usage: %prog [options] REPORT_CSV"
+  parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
+  parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
+  parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   parser.add_option("-c", "--cnumber",  help="Start number for component numbers", action="store", dest="c", type="int" , default=1)
   parser.add_option("-p", "--preserve", help="Preserve group numbers", action="store_true", dest="preserve", default=False)
-  parser.add_option("-e", "--elinc",    help="Special formatting for ELinC data", action="store_true", dest="elinc", default=False)
-  parser.add_option("-o", "--outfile",  help="Output file name [default: componentlib.msp]", action="store", dest="outfile", type="string", default="componentlib.msp")
+
   (options, args) = parser.parse_args()
 
   ### ARGUMENTS

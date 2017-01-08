@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import os
 import json
 import time
 from collections import OrderedDict
@@ -66,27 +67,69 @@ def normalise(xydata, norm = 999, verbose = False):
     
 
 
-def sumspectrum(*spectra, name="sum"):
+def sumspectrum(*spectra, name="sum", signal="IS", highest=False):
+ 
+  ### calculate signals
+  
+  signals = []
+  spectra2 = {}   #combine signals and spectra 
+  
+  for sp in spectra:
+    if signal in sp: signals.append(float(sp[signal]))
+    else           : signals.append(0)
+  
+  maxsignal = max(signals)
+  minsignal = maxsignal
+  for s in signals:
+    if (s < minsignal) and (s != 0): minsignal = s
+
+  # give the spectra without a signal, a value that is 0.1 times that of the lowest
+  if maxsignal != 0:
+    signals = [((minsignal*0.1) if s==0 else s) for s in signals]
+  else:
+    signals = [1 for s in signals] #if however all signals are 0 (no IS set), all 1
+  
+  #combine signals and spectra
+  for i in range(signals):
+    spectra2[signals[i]] = spectra[i]
+  
+  
+  ### reduce spectra2 to the highest signals
+  
+  spectra3 = {}
+  if highest:
+    signals = sorted(signals)
+    use = []
+    for s in signals:
+      if highest > 0:
+        use.append(s)
+        highest -= 1
+    for si, sp in spectra2.items():
+      if si >= min(use):
+        spectra3[si] = sp
+  else:
+    spectra3 = spectra2
+    
+  
+  ### make sumspectrum      
+  
   xysum = {}
   rilist = []
   
   #process the individual spectra
-  for sp in spectra:
+  for si, sp in spectra3.items():
     #RI
-    if 'RI' in sp:
-      ri = float(sp['RI'])
-    else:
-      ri = extractRI(sp['Name'])
-    if ri != 0:
-      rilist.append(ri)
+    if 'RI' in sp: rilist.append(float(sp['RI']))
+    
     #xydata
     for x, y in sp['xydata'].items():
       if x not in xysum:
-        xysum[x] = y
+        xysum[x] =si * y
       else:
-        xysum[x] = xysum[x] + y
+        xysum[x] = xysum[x] + si * y
   
-  # TODO? normalise to 999
+  # normalise to 999
+  normalise(xysum)
   
   # average RI
   if len(rilist) > 0:
@@ -98,29 +141,17 @@ def sumspectrum(*spectra, name="sum"):
   d = max(rilist) -  min(rilist)
     
   # output a very basic spectrum: name, RI (if available), numpeaks and xydata
-  sp = {}
+  sp = OrderedDict()
   sp['Name'] = name
   if ri != 0:
     sp['Name'] += " RI=" + str(round(ri,2))
     sp['RI'] = str(round(ri,2))
-    sp['Comments'] = "RI=" + str(round(ri,2)) + " dRI=" + str(round(d,2))
+    sp['dRI'] = str(round(d,2))
   sp['Num Peaks'] = len(xysum)
   sp['xydata'] = xysum
   
   return sp
 
-
-
-
-
-def extractRI(name):
-  if "RI=" in name:
-    ri = name.split("RI=", 1)[1]
-    ri = ri.split(" ", 1)[0]
-    ri = float(ri.strip())
-  else:
-    ri = 0
-  return ri
 
 
  
