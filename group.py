@@ -8,6 +8,12 @@ from optparse import OptionParser, OptionGroup
 import gcmstoolbox
 
 
+#globals
+data = OrderedDict()
+allocations = OrderedDict()  #dictionary of all spectra with the groups to which they belong
+doubles = OrderedDict()  #dictionary of groups of possibly the same component
+
+
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
@@ -30,7 +36,7 @@ def main():
   parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   
   group = OptionGroup(parser, "RETENTION INDEX GROUPING CRITERIUM", "Only select matching mass spectra that have a retention index matching an RI window around the RI of the unknown spectrum.\n[RIwindow] = [RIfixed] + [RIfactor] * RI\nNote: if both RIfixed and RIfactor are zero, no retention based grouping will be applied.")
-  group.add_option("-r", "--rifixed",  help="Apply an RI window with fixed term. [default: 0]",  action="store", dest="riwindow", type="float", default=0)
+  group.add_option("-r", "--rifixed",  help="Apply an RI window with fixed term. [default: 0]",  action="store", dest="rifixed", type="float", default=0)
   group.add_option("-R", "--rifactor", help="Apply an RI window with RI-dependent factor [default: 0]",  action="store", dest="rifactor", type="float", default=0)
   group.add_option("-D", "--discard",  help="Discard hits without RI",  action="store_true", dest="discard", default=False)
   parser.add_option_group(group)
@@ -41,7 +47,7 @@ def main():
   parser.add_option_group(group)
   
   group = OptionGroup(parser, "AMBIGUOUS MATCHES", "Sometimes a spectrum is matched against a series of spectra that are allocated to two or more different groups. By default, these groups are merged and all spectra allocated to these groups are reallocated to the merged group.")
-  group.add_option("-N", "--nomerge",  help="Do not merge groups with ambiguous matches", action="store_false", dest="merge", default=False)
+  group.add_option("-N", "--nomerge",  help="Do not merge groups with ambiguous matches", action="store_false", dest="merge", default=True)
   parser.add_option_group(group)
   
   (options, args) = parser.parse_args()
@@ -49,6 +55,8 @@ def main():
   
   ### ARGUMENTS AND OPTIONS
 
+  global data, allocations, doubles, j, k
+  
   cmd = " ".join(sys.argv)
   
   if options.verbose: print("Processing arguments")
@@ -76,26 +84,32 @@ def main():
   if options.verbose:
     print(" => JSON input file:  " + options.jsonin)
     print(" => JSON output file: " + options.jsonout + "\n")
+    
 
   ### GROUP
  
   # init progress bar
   print("\nProcessing file: " + inFile)
-  if not options.verbose: 
+  k = len(data['spectra'])
+  if not options.verbose:
     j = 0
-    k = len(data['spectra'])
     gcmstoolbox.printProgress(j, k)
   
-  #globals
-  allocations = OrderedDict()  #dictionary of all spectra with the groups to which they belong
-  doubles = {}  #dictionary of groups of possibly the same component
-  
   # open MSPEPSEARCH file, read and interpret it line by line
+  i = 1
   with open(inFile,'r') as fh:
     for line in fh:
-      if line.casefold().startswith('unknown'):
-        readlist(fh, line, options.rifixed, options.rifactor, options.discard, options.minmf, options.minrmf, options.merge, options.verbose)
-        
+      for z in range(k):
+        if line.casefold().startswith('unknown'):
+          line, i = readlist(fh, line, i, options.rifixed, options.rifactor, options.discard, options.minmf, options.minrmf, options.merge, options.verbose)
+          
+          # update progress bar 
+          if not options.verbose: 
+            j += 1
+            gcmstoolbox.printProgress(j, k)
+          
+          if line == "eof": break
+
 
   ### BUILD GROUPS
   
@@ -126,7 +140,8 @@ def main():
   stats = OrderedDict()
   stats["spectra"] = len(data['spectra'])
   stats["groups"]  = len(data['groups'])
-  stats["ambiguous"] = doubles
+  if options.merge: stats["merged"]    = [sorted(d) for d in doubles.values()]
+  else:             stats["ambiguous"] = [sorted(d) for d in doubles.values()]
   stats["stats"] = groupstats(data['groups'])
   
   print("\nSTATISTICS")
@@ -153,22 +168,16 @@ def main():
   data["info"]["grouping"] = stats
   data["info"]["cmds"].append(cmd)
   gcmstoolbox.saveJSON(data, options.jsonout)     # backup and safe json
-  print(" => Finalised. Wrote " + options.jsonout + "\n")
+  print("\nFinalised. Wrote " + options.jsonout + "\n")
   
   exit()
 
 
 
 
-def readlist(fh, line, RIfixed, RIfactor, discard, minMF, minRMF, merge, verbose = False, i = 1):
+def readlist(fh, line, i, RIfixed, RIfactor, discard, minMF, minRMF, merge, verbose = False):
   
   global data, allocations, doubles
-  
-  # update progress bar 
-  if not verbose: 
-    global j, k
-    j += 1
-    gcmstoolbox.printProgress(j, k)
   
   hits = []
   processed = False
@@ -193,8 +202,6 @@ def readlist(fh, line, RIfixed, RIfactor, discard, minMF, minRMF, merge, verbose
       parts = line.split(">>; ")     # the possibility of having semicolons inside the sample name makes this more complex
       hit = parts[0].replace("<<", "").strip()
       
-      # TODO check if unknown is a spectrum name! checkspectrum(name)
-      
       # extract RI, match and reverse match
       h = getRI(hit) if (w != 0) else 0
       hitMF, hitRMF, temp = parts[2].split("; ", 2)
@@ -218,7 +225,7 @@ def readlist(fh, line, RIfixed, RIfactor, discard, minMF, minRMF, merge, verbose
       if accept: hits.append(hit)
         
     else:
-      if processed == False: 
+      if processed == False:
         # process hit list
         if len(hits) > 0:
           if verbose: print(" - Unknown: " + unknown + ((" (RI window: " + str(round(w,2)) + ")") if w > 0 else ""))
@@ -226,7 +233,7 @@ def readlist(fh, line, RIfixed, RIfactor, discard, minMF, minRMF, merge, verbose
           foundgroups = []
 
           for hit in hits:
-            if hit in allocations:
+            if hit in allocations.keys():
               if verbose: print("   -> hit: " + hit +  " -> G" + str(allocations[hit]))
               if allocations[hit] not in foundgroups:
                 foundgroups.append(allocations[hit])
@@ -235,13 +242,12 @@ def readlist(fh, line, RIfixed, RIfactor, discard, minMF, minRMF, merge, verbose
           
           if len(foundgroups) == 0:
             group = i
-            i = i + 1
+            i += 1
             if verbose: print("   new group [G" + str(group) + "]")
           elif len(foundgroups) == 1:
             group = foundgroups[0]
             if verbose: print("   existing group [G" + str(group) + "]")
           else: # multiple possible groups !!!
-
             # compile a list of sets of duplicates
             if min(foundgroups) not in doubles:
               doubles[min(foundgroups)] = set(foundgroups)
@@ -266,25 +272,25 @@ def readlist(fh, line, RIfixed, RIfactor, discard, minMF, minRMF, merge, verbose
             #MERGE: remove the chosen group from the foundgroups 
             #and search for all spectra that were allocated to these other groups
             if merge:
-              foundgroups.discard(group)
+              foundgroups.remove(group)
               for other in foundgroups:
                 for s, g in allocations.items():
                   if other == g:
-                    hit.append(s)
+                    hits.append(s)
 
-            # allocate
-            hits = list(set(hits))  # remove duplicates
-            for hit in hits:
-              if (hit not in allocations) or merge:   # if merge=true :  first level of merging
-                allocations[hit] = group      
+          # allocate
+          hits = list(set(hits))  # remove duplicates
+          for hit in hits:
+            if (hit not in allocations) or merge:   # if merge=true :  first level of merging
+              allocations[hit] = group
         
         processed = True  #prevent process from being called twice
-        #TODO progressbar
         
-      if line.casefold().startswith('unknown'):        
-        readlist(fh, line, RIfixed, RIfactor, discard, minMF, minRMF, merge, verbose, i)   #recursive
+      if line.casefold().startswith('unknown'):
+        return line, i
         
-  # when EOF, this loop stops, and we'll return to the parent readList(), where the loop also stops? 
+  # when EOF
+  return "eof", i
 
 
 
@@ -327,7 +333,7 @@ def buildgroups(groups, g, s):
 
 
 
-def groupstats(groups, verbose):
+def groupstats(groups, verbose = False):
   
   # make stats
   stats = {}

@@ -15,8 +15,8 @@ def main():
   
 
 # GCMStoolbox version
-version = "1.9.1"
-date    = " 5 Jan 2017"  #12 chars!
+version = "1.9.2"
+date    = " 9 Jan 2017"  #12 chars!
 
 
 # ELinC resin names
@@ -90,7 +90,7 @@ def sumspectrum(*spectra, name="sum", signal="IS", highest=False):
     signals = [1 for s in signals] #if however all signals are 0 (no IS set), all 1
   
   #combine signals and spectra
-  for i in range(signals):
+  for i in range(len(signals)):
     spectra2[signals[i]] = spectra[i]
   
   

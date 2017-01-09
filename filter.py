@@ -197,26 +197,26 @@ def main():
   data['filters'][f] = OrderedDict()
   if c1: data['filters'][f]['crit1'] = ", ".join(removegroups)
   if c2: data['filters'][f]['crit2'] = str(options.count)
-  if c3: data['filters'][f]['crit3'] = "m/z " + ", ".join(options.mass) + "; " + str(options.percent) + "%; " + str(options.n)
+  if c3: data['filters'][f]['crit3'] = "m/z " + ", ".join(str(m) for m in options.mass) + "; " + str(options.percent) + "%; " + str(options.n)
   data['filters'][f]['active'] = True
-  data['filters'][f]['out'] = candidates
+  data['filters'][f]['out'] = sorted(candidates)
 
   print("\nFilter " + f)
   print("  - initial number of groups:  " + str( len(data['groups']) ))
   print("  - number of removed groups:  " + str( len(candidates) ))
-  print("  - number of retained groups: " + str( len(data['groups'] - len(candidates) )))
+  print("  - number of retained groups: " + str( len(data['groups']) - len(candidates) ))
 
   af = []
   ac = set()
   for f, filter in data['filters'].items():
     if filter['active']:
       af.append(f)
-      ac.extend(filter['out'])
+      ac.update(filter['out'])
   
   print("\nAll active filters (" + ", ".join(af) + ")")
   print("  - initial number of groups:  " + str( len(data['groups']) ))
   print("  - number of removed groups:  " + str( len(ac) ))
-  print("  - number of retained groups: " + str( len(data['groups'] - len(ac) )))
+  print("  - number of retained groups: " + str( len(data['groups']) - len(ac) ))
 
   data['info']['mode'] = "filter"
   data["info"]["cmds"].append(cmd)
