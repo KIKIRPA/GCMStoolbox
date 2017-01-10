@@ -24,18 +24,37 @@ def main():
   ### OPTIONPARSER
   
   usage = "usage: %prog [options] REPORT_CSV"
+  
   parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
   parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   parser.add_option("-c", "--cnumber",  help="Start number for component numbers", action="store", dest="c", type="int" , default=1)
   parser.add_option("-p", "--preserve", help="Preserve group numbers", action="store_true", dest="preserve", default=False)
+  parser.add_option("-s", "--sum",      help="Calculate sumspectra with the N spectra with highest signal, 0 for all [default: 0]", action="store",  dest="n", type="int", default=0)
 
   (options, args) = parser.parse_args()
+  
 
   ### ARGUMENTS
 
+  cmd = " ".join(sys.argv)
+
   if options.verbose: print("Processing arguments...")
+  
+  # check and read JSON input file
+  data = gcmstoolbox.openJSON(options.jsonin)
+  if data['info']['mode'] == 'spectra':
+    print("\n!! Cannot filter on ungrouped spectra.")
+    exit()
+  
+  # json output 
+  if options.jsonout == None: 
+    options.jsonout = options.jsonin
+
+  if options.verbose:
+    print(" => JSON input file:  " + options.jsonin)
+    print(" => JSON output file: " + options.jsonout + "\n")
 
   # preserve and c number flags cannot be used together
   if options.preserve and (options.c != 1):
@@ -45,95 +64,92 @@ def main():
   # input file
   if len(args) == 0: #exit without complaining
       exit()
-  elif len(args) != 2:
-    print("\n!! This program should have two arguments: firstly the SOURCE_MSP_FILE and secondly the GROUP_JSON_FILE")
-    exit()
+  elif len(args) == 1:
+    outfile = args[0]
   else:
-    if os.path.isfile(args[0]):
-      sourceFile = args[0]
-    else:
-      print("\n!! SOURCE_MSP_FILE '" + args[0] + "' not found.")
-      exit()
-      
-    if os.path.isfile(args[1]):
-      with open(args[1],'r') as fh:    
-        groups = json.load(fh)
-    else:
-      print("\n!! GROUP_JSON_FILE '" + args[1] + "' not found.")
-      exit()  
+    print("\n!! Too many arguments")
+    exit()
+
+
+  ### APPLY ACTIVE FILTERS
   
-  
-  ### READ SPECTRA
-  
-  # make a list of spectra that need to be fetched
-  splist = []
-  for group in groups.values():
-    splist.extend(group['spectra'])
-  
-  # stdOut
-  print("\nRead the required data from " + sourceFile)
+  print("\nApply filters...")
   if not options.verbose: 
     i = 0
-    j = len(splist)
+    j = len(data['filters'])
     gcmstoolbox.printProgress(i, j)
-
-  # read spectra from msp file
-  spectra = {}
-  with open(sourceFile,'r') as fh:
-    while True:
-      sp = gcmstoolbox.readspectrum(fh, verbose=options.verbose, match=splist)
-      if sp == "eof":
-        break
-      elif sp != "no match":  # in other words: when we found a matching spectrum
-        spectra[sp['Name']] = sp
-        # progress bar
-        if not options.verbose: 
-          i += 1
-          gcmstoolbox.printProgress(i, j)
-
-
-  ### MAKE SUM SPECTRA
   
-  # stdOut
-  print("\nBuilding component library")
+  out = set()
+  for id, f in data['filters'].items():
+    if f['active']:
+      out.update(f['out'])
+      if options.verbose: print(" - add " + id)
+    if not options.verbose: 
+      i += 1
+      gcmstoolbox.printProgress(i, j)
+
+
+  ### BUILD COMPONENTS
+
+  print("\nBuild components...")
   
   i = 0  # we'll use this both for the progress bar and for the component number (i + options.c, if options.preserve is false)
   report = []
+  data['components'] = OrderedDict()
   
   if not options.verbose: 
     j = len(groups.keys())
     gcmstoolbox.printProgress(i, j)
   
-  with open(options.outfile,'w') as fh:
-    for g in sorted(int(x) for x in groups.keys()):
+  for g, group in data['groups'].items():
+    if g not in out: #apply filter
       # init
       groupspectra = []
-      name = []            # for sum spectrum
-      comments = []        # for sum spectrum
-      csvSpectra = []      # for cvs report
-      csvMeasurements = [] # for cvs report
+      #name = []            # for sum spectrum
+      #comments = []        # for sum spectrum
+      #csvSpectra = []      # for cvs report
+      #csvMeasurements = [] # for cvs report
       
       # group or component numbering:
       if not options.preserve: c = i + options.c
-      else:                    c = g
-      
+      else:                    c = int(g.replace('G', ''))
+    
       # collect the spectra
-      for s in groups[str(g)]['spectra']:
-        if not options.elinc: csvSpectra.append(s)
-        groupspectra.append(spectra.pop(s))
-      
+      for s in group['spectra']:
+        #if not options.elinc: csvSpectra.append(s)
+        groupspectra.append(data['spectra'][s])
+    
       # if more than one spectrum, make sumspectrum
       if len(groupspectra) > 1:
-        sp = gcmstoolbox.sumspectrum(*groupspectra, name="")
+        sp = gcmstoolbox.sumspectrum(*groupspectra, name="", highest=options.n)
       else:
         sp = groupspectra[0]
-          
+        
       # rebuild the spectra metadata (and change for single spectra things)
+      sp['DB#'] = c
+      
+      
+'''      
+      
+      
+      items = ["Sample", "Resin", "AAdays", "Color", "PyTemp"]
+      
+      
+      
+      
+      
+      
+      sample = for s in groupspectra
+      
+      
+      
       for s in groupspectra:
         name.append(s['Name'])
         comments.append(s['Comments'])
-        if not options.elinc: csvMeasurements.append(s['Source'])
-      
+
+
+
+    
       if options.elinc:
         csvSpectra, csvMeasurements = elincize(sp, "C" + str(c), name, comments)
       else:
@@ -172,7 +188,7 @@ def main():
       else:          line.append(" ")
   
   # write report file
-  with open(options.outfile + '.csv', 'w', newline='') as fh:
+  with open(outfile, 'w', newline='') as fh:
     mkreport = csv.writer(fh, dialect='excel')
     mkreport.writerow(["component", "group", "spectra"] + sorted(allmeas))
     for line in report:
@@ -252,7 +268,7 @@ def elincize(sp, prefix, names, comments, verbose = False):
   meas = list(set(meas)) #remove duplicates
   return sorted(specno), sorted(meas)
   
-
+'''
 
     
 if __name__ == "__main__":

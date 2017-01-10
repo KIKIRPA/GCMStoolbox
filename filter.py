@@ -21,41 +21,50 @@ def main():
 
   ### OPTIONPARSER
   
-  usage = "usage: %prog COMMAND [options]"   #\n\nPossible commands are:\n - make\n - list\n - activate\n - deactivate\n\n"
+  usage = "\n\nCommands:\n"
+  usage += "  list    Overview of defined filters\n"
+  usage += "           --> usage: %prog list [options]\n"
+  usage += "  on      Enable filter\n"
+  usage += "           --> usage: %prog on [options] FILTER_NUMBERS\n"
+  usage += "  off     Disable filter\n"
+  usage += "           --> usage: %prog off [options] FILTER_NUMBERS\n"
+  usage += "  make    Define a new filter\n"
+  usage += "           --> usage: %prog make [options]"
   
   parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
   parser.add_option("-v", "--verbose",    help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
   parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   
-  group = OptionGroup(parser, "CRITERIUM 1", "Filter out groups based on group number")
-  group.add_option("-g", "--group",       help="Group number [default: 0], multiple instances can be defined", action="append", dest="group", type="string")
+  group = OptionGroup(parser, "MAKE: Filter out groups based on group number")
+  group.add_option("-g", "--group",       help="Group number [default: 0], multiple possible", action="append", dest="group", type="string")
   parser.add_option_group(group)
   
-  group = OptionGroup(parser, "CRITERIUM 2", "Filter out groups on the number of spectra in a group")
+  group = OptionGroup(parser, "MAKE: Filter out groups on the number of spectra in a group")
   group.add_option("-c", "--count",      help="Minimal number of spectra per group", action="store", dest="count", type="int")
   parser.add_option_group(group)
   
-  group = OptionGroup(parser, "CRITERIUM 3", "Filter out groups based on the presence of a chosen m/z")
-  group.add_option("-m", "--mass",       help="m/z value, multiple instances can be defined", action="append", dest="mass", type="int")
+  group = OptionGroup(parser, "MAKE: Filter out groups based on the presence of a chosen m/z")
+  group.add_option("-m", "--mass",       help="m/z value, multiple possible", action="append", dest="mass", type="int")
   group.add_option("-M", "--percent",    help="Minimal relative intensity of a m/z value [default: 90]", action="store", dest="percent", type="int", default=90)
-  group.add_option("-s", "--sum",        help="Use only the N spectra with highest signal to calculate sumspectra, 0 for all [default: 0]", action="store",  dest="n", type="int", default=0)
+  group.add_option("-s", "--sum",        help="Calculate sumspectra with the N spectra with highest signal, 0 for all [default: 0]", action="store",  dest="n", type="int", default=0)
   parser.add_option_group(group)
   
   (options, args) = parser.parse_args()
   
-  ### ARGUMENTS
+  
+  ### ARGUMENTS AND OPTIONS
   
   cmd = " ".join(sys.argv)
 
   if options.verbose: print("Processing arguments...")
-
+  
   # check and read JSON input file
   data = gcmstoolbox.openJSON(options.jsonin)
   if data['info']['mode'] == 'spectra':
     print("\n!! Cannot filter on ungrouped spectra.")
     exit()
-    
+  
   # json output 
   if options.jsonout == None: 
     options.jsonout = options.jsonin
@@ -63,6 +72,48 @@ def main():
   if options.verbose:
     print(" => JSON input file:  " + options.jsonin)
     print(" => JSON output file: " + options.jsonout + "\n")
+    
+  # command and arguments
+  if len(args) == 0:
+    print(" !! No command given\n")
+    exit()
+  elif args[0].lower().startswith("l"):
+    if len(args) > 1:
+      print(" !! The list command does not support arguments\n")
+      exit()
+    else: #LIST
+      for id, it in data['filters'].items():
+        print(id + ": filters out " + str(len(it['out'])) + " groups [" + ("Enabled" if it['active'] else "Disabled") + "]")
+        if 'crit1' in it: print("  - remove groups: " + it['crit1'])
+        if 'crit2' in it: print("  - remove on spectrum count: " + it['crit2'])
+        if 'crit3' in it: print("  - remove on m/z values: " + it['crit3'])
+        print('')
+      exit()
+  elif (args[0].lower() == 'on') or (args[0].lower() == 'off'):
+    flist = [x.upper() for x in args]
+    act = True if (flist.pop(0) == 'ON') else False
+    safe = False
+    for f in flist:
+      if not f.startswith("F"): f = "F" + f
+      if f in data['filters']:
+        data['filters'][f]['active'] = act
+        print(('Enabled ' if act else 'Disabled ') + f)
+        safe = True
+    if safe:
+      data["info"]["cmds"].append(cmd)
+      gcmstoolbox.saveJSON(data, options.jsonout)     # backup and safe json
+      print(" => Updated " + options.jsonout + "\n")
+    else:
+      print(" !! Invalid filter names\n")
+    exit()
+  elif args[0].lower().startswith("m"):
+    if len(args) > 1:
+      print(" !! The list command does not support arguments\n")
+      exit()
+    # else: proceed
+  else:
+    print(" !! Invalid command given\n")
+    exit()
     
   #criterium flags
   c1 = False if options.group is None else True  #CRITERIUM1: group numbers to be removed
