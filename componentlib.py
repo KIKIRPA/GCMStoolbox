@@ -2,10 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import os
-from glob import glob
 from optparse import OptionParser, OptionGroup
-import json
+from collections import OrderedDict
+from copy import deepcopy
 import csv
 import gcmstoolbox
 
@@ -42,6 +41,16 @@ def main():
 
   if options.verbose: print("Processing arguments...")
   
+  # input file
+  if len(args) == 0: #exit without complaining
+    print("\n!! Needs a file name for the CSV report")
+    exit()
+  elif len(args) == 1:
+    outfile = args[0]
+  else:
+    print("\n!! Too many arguments")
+    exit()
+  
   # check and read JSON input file
   data = gcmstoolbox.openJSON(options.jsonin)
   if data['info']['mode'] == 'spectra':
@@ -59,15 +68,6 @@ def main():
   # preserve and c number flags cannot be used together
   if options.preserve and (options.c != 1):
     print("\n!! The options -c (--cnumber) and -p (--preserve) cannot be used together.")
-    exit()
-
-  # input file
-  if len(args) == 0: #exit without complaining
-      exit()
-  elif len(args) == 1:
-    outfile = args[0]
-  else:
-    print("\n!! Too many arguments")
     exit()
 
 
@@ -97,179 +97,131 @@ def main():
   report = []
   data['components'] = OrderedDict()
   
-  if not options.verbose: 
-    j = len(groups.keys())
-    gcmstoolbox.printProgress(i, j)
-  
+  # to sort components on RI, we'll make an intermediary groups dict (ri: groupname)
+  groups = {}
+  r = 10000
   for g, group in data['groups'].items():
     if g not in out: #apply filter
-      # init
-      groupspectra = []
-      #name = []            # for sum spectrum
-      #comments = []        # for sum spectrum
-      #csvSpectra = []      # for cvs report
-      #csvMeasurements = [] # for cvs report
-      
-      # group or component numbering:
-      if not options.preserve: c = i + options.c
-      else:                    c = int(g.replace('G', ''))
+      if 'minRI=' in group: ri = float[group['minRI']]
+      else: 
+        ri = r
+        r += 1
+      groups[ri] = g
+  sortgroups = sorted(groups.keys())
+
+  if not options.verbose: 
+    j = len(groups)
+    gcmstoolbox.printProgress(i, j)
+
+  for ri in sortgroups:
+    # init
+    g = groups[ri]
+    group = data['groups'][g]
+    groupspectra = []
     
-      # collect the spectra
-      for s in group['spectra']:
-        #if not options.elinc: csvSpectra.append(s)
-        groupspectra.append(data['spectra'][s])
+    # group or component numbering:
+    if not options.preserve: c = i + options.c
+    else:                    c = int(g.replace('G', ''))
+  
+    # collect the spectra
+    for s in group['spectra']:
+      #if not options.elinc: csvSpectra.append(s)
+      groupspectra.append(data['spectra'][s])
+  
+    # if more than one spectrum, make sumspectrum
+    if len(groupspectra) > 1:
+      sp = gcmstoolbox.sumspectrum(*groupspectra, highest=options.n)
+    else:
+      sp = deepcopy(groupspectra[0])
+      
+    # rebuild the spectra metadata (and change for single spectra things)
+    name = "C" + str(c) + " RI=" + sp['RI']
+    sp['DB#'] = str(c)
     
-      # if more than one spectrum, make sumspectrum
-      if len(groupspectra) > 1:
-        sp = gcmstoolbox.sumspectrum(*groupspectra, name="", highest=options.n)
-      else:
-        sp = groupspectra[0]
-        
-      # rebuild the spectra metadata (and change for single spectra things)
-      sp['DB#'] = c
-      
-      
-'''      
-      
-      
-      items = ["Sample", "Resin", "AAdays", "Color", "PyTemp"]
-      
-      
-      
-      
-      
-      
-      sample = for s in groupspectra
-      
-      
-      
+    samples = []
+    for s in groupspectra:
+      if 'Sample' in s:   samples.append(s['Sample'])
+      elif 'Source' in s: samples.append(s['Source'])
+      else:               samples.append('Unknown')
+    sp['Spectra'] = group['spectra']
+    sp['Samples'] = samples
+    
+    items = ["Resin", "AAdays", "Color", "PyTemp"]
+    for item in items:
+      value = set()
       for s in groupspectra:
-        name.append(s['Name'])
-        comments.append(s['Comments'])
-
-
-
+        if item in s:
+          value.add(s[item])
+      if len(value) > 0:
+        sp[item] = "-".join(sorted(value))
     
-      if options.elinc:
-        csvSpectra, csvMeasurements = elincize(sp, "C" + str(c), name, comments)
-      else:
-        sp['Name'] = "C" + str(c) + " [ " + " | ".join(name) + " ] " + sp['Name']
-        sp['Comments'] = "RI=" + str(sp['RI']) + " " + " | ".join(comments)
-        
-      # report things
-      reportline = ["C" + str(c), "G" + str(g), " ".join(csvSpectra), csvMeasurements]
-      report.append(reportline)
-      
-      # write spectrum
-      gcmstoolbox.writespectrum(fh, sp, options.verbose)
-      
-      # progress bar
-      if not options.verbose: 
-        i += 1
-        gcmstoolbox.printProgress(i, j)
-        
-  print("  --> Wrote " + options.outfile)
+    # expand name
+    if 'Resin'  in sp: name += " " + sp['Resin']
+    if 'AAdays' in sp: name += " D=" + sp['AAdays']
+    if 'Color'  in sp: name += " C=" + sp['Color']
+    if 'PyTemp' in sp: name += " T=" + sp['PyTemp']
+    
+    # add to data
+    data['components'][name] = sp
+    
+    # report things
+    reportline = ["C" + str(c), g, " ".join(sp['Spectra']), samples]
+    report.append(reportline)
+    
+    i += 1
+    
+    # progress bar
+    if options.verbose:
+      print("  - " + name)
+    else:
+      gcmstoolbox.printProgress(i, j)
+
+
+  ### MAKE REPORT
   
-        
-  ### MAKE SUM SPECTRA
+  print("\nGenerating report...")
   
-  print("\nGenerating report")
+  if not options.verbose: 
+    i = 0
+    j = len(report)
+    gcmstoolbox.printProgress(i, j)
   
   # compile a list of all measurements
   allmeas = set()
   for line in report:
     allmeas.update(line[3])
   
-  # build the measurement grid
-  for line in report:
-    match = line.pop()
-    for m in sorted(allmeas):
-      if m in match: line.append("Y")
-      else:          line.append(" ")
-  
   # write report file
   with open(outfile, 'w', newline='') as fh:
     mkreport = csv.writer(fh, dialect='excel')
     mkreport.writerow(["component", "group", "spectra"] + sorted(allmeas))
+    
     for line in report:
+      match = line.pop()
+      for m in sorted(allmeas):
+        if m in match: line.append("Y")
+        else:          line.append(" ")
       mkreport.writerow(line)
       
-  print("  --> Wrote " + options.outfile + ".csv\n")
+      if not options.verbose: 
+        i += 1
+        j = len(report)
+        gcmstoolbox.printProgress(i, j)
+      
+  print(" => Wrote " + outfile)
 
 
-
-
-
-
-def elincize(sp, prefix, names, comments, verbose = False):
-  # special formatting for ELinC data
-  # 1. short sample names
+   ### SAVE OUTPUT JSON
+   
+  print("\nSaving data...")
   
-  short = { "BLK0000": "BLA",
-            "BLK0002": "LAR",
-            "BLK0004": "MAN",
-            "BLK0005": "PIC",
-            "BLK0007": "SEE",
-            "BLK0008": "COL",
-            "BLK0009": "ABI",
-            "BLK0012": "MAS",
-            "BLK0013": "GAM",
-            "BLK0014": "ELE",
-            "BLK0017": "KAU",
-            "BLK0026": "COP",
-            "BLK0031": "STI",
-            "BLK0032": "SUM",
-            "BLK0040": "TUN",
-            "BLK0045": "EAF",
-            "BLK0048": "SA2",
-            "BLK0065": "HCN",
-            "BLK0066": "HCF",
-            "BLK0067": "CON",
-            "BLK0070": "MAD"
-          }
+  data['info']['mode'] = "components"
+  data["info"]["cmds"].append(cmd)
+  gcmstoolbox.saveJSON(data, options.jsonout)     # backup and safe json
   
-  # 2. split the spectrum names in reusable lists
-  specno = []
-  meas = []
-  samples = set()
-  aging = set()
-  color = set()
-  temp = set()
+  print(" => Wrote " + options.jsonout + "\n")
+  exit()
   
-  for name in names:
-    parts = name.split(' ')
-    specno.append(parts[0])
-    meas.append(parts[2])
-    
-    parts = parts[2].split('-')
-    samples.add(parts[0])
-    aging.add(parts[2][:-1])
-    color.add(parts[2][-1:])
-    temp.add(parts[3])
-  
-  samples2 = set()
-  for x in samples:
-    if x in short.keys():
-      samples2.add(short[x])
-    else:
-      samples2.add(x)
-
-  # 3. update spectrum sp
-  sp['Name'] = ( prefix + " " + 
-                 "-".join(sorted(samples2)) + 
-                 " D=" + "-".join(sorted(aging)) + 
-                 " C=" + "-".join(sorted(color)) +
-                 " T=" + "-".join(sorted(temp)) +
-                 " RI=" + sp['RI']
-               )
-  sp['Comments'] += " " + " | ".join(names).replace("=", "")
-  
-  # 4. update names and spectra for cvs report
-  meas = list(set(meas)) #remove duplicates
-  return sorted(specno), sorted(meas)
-  
-'''
-
     
 if __name__ == "__main__":
   main()

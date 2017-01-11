@@ -15,8 +15,8 @@ def main():
   
 
 # GCMStoolbox version
-version = "1.9.2"
-date    = " 9 Jan 2017"  #12 chars!
+version = "2.0"
+date    = "11 Jan 2017"  #12 chars!
 
 
 # ELinC resin names
@@ -64,10 +64,8 @@ def normalise(xydata, norm = 999, verbose = False):
 
 
 
-    
 
-
-def sumspectrum(*spectra, name="sum", signal="IS", highest=False):
+def sumspectrum(*spectra, signal="IS", highest=False):
  
   ### calculate signals
   
@@ -93,24 +91,18 @@ def sumspectrum(*spectra, name="sum", signal="IS", highest=False):
   for i in range(len(signals)):
     spectra2[signals[i]] = spectra[i]
   
-  
   ### reduce spectra2 to the highest signals
   
   spectra3 = {}
   if highest:
-    signals = sorted(signals)
-    use = []
-    for s in signals:
-      if highest > 0:
-        use.append(s)
-        highest -= 1
+    signals = sorted(signals, reverse=True)
+    limit = signals[((highest-1) if len(signal) >= highest else (len(signal) - 1))]
     for si, sp in spectra2.items():
-      if si >= min(use):
+      if si >= limit:
         spectra3[si] = sp
   else:
     spectra3 = spectra2
     
-  
   ### make sumspectrum      
   
   xysum = {}
@@ -140,11 +132,9 @@ def sumspectrum(*spectra, name="sum", signal="IS", highest=False):
   # delta RI
   d = max(rilist) -  min(rilist)
     
-  # output a very basic spectrum: name, RI (if available), numpeaks and xydata
+  # output a very basic spectrum: RI (if available), numpeaks and xydata
   sp = OrderedDict()
-  sp['Name'] = name
   if ri != 0:
-    sp['Name'] += " RI=" + str(round(ri,2))
     sp['RI'] = str(round(ri,2))
     sp['dRI'] = str(round(d,2))
   sp['Num Peaks'] = len(xysum)

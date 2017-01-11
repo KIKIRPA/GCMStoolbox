@@ -30,7 +30,7 @@ def main():
   parser.add_option("-v", "--verbose", help="Be very verbose [not default]", action="store_true", dest="verbose", default=False)
   parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
   parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
-  parser.add_option("-m", "--mode",    help="Mode: auto|spectra|group|components [default:auto]", action="store", dest="mode", type="string", default="gcmstoolbox.json")
+  parser.add_option("-m", "--mode",    help="Mode: auto|spectra|group|components [default:auto]", action="store", dest="mode", type="string", default="auto")
   
   (options, args) = parser.parse_args()
 
@@ -63,19 +63,41 @@ def main():
     print(" => Output msp file:  " + mspfile + "\n")
 
 
+  ### MODE
+  
+  if options.mode.lower().startswith('a'):
+    mode = data['info']['mode']
+    if mode == 'filter': mode = 'group'
+  elif options.mode.lower().startswith('g'):   
+    mode = 'group'
+    if data['info']['mode'] == 'spectra':
+      print("  !! No groups defined - run groups.py first\n")
+      exit()
+  elif options.mode.lower().startswith('c'):
+    mode = 'components'
+    if data['info']['mode'] != 'components':
+      print("  !! No components defined - run componentlib.py first\n")
+      exit()
+  
+  print("Mode: " + mode)
+  if mode == 'group':
+    print("!! This mode is not yet supported\n")
+    exit()
+    
+    
   ### WRITE FILE
   
-  print("Processing mass spectra")
+  print("\nProcessing mass spectra")
   with open(mspfile, "w") as fh:
     
     # mode: SPECTRA
     # init progress bar
     if not options.verbose: 
       j = 0
-      k = len(data['spectra'])
+      k = len(data[mode])
       gcmstoolbox.printProgress(j, k)
     
-    for name, spectrum in data['spectra'].items():
+    for name, spectrum in data[mode].items():
       writespectrum(fh, name, spectrum, options.verbose)
     
       # adjust progress bar
@@ -117,6 +139,11 @@ def writespectrum(fh, name, sp, verbose = False):
   # remove other fields
   numpeaks = sp.pop('Num Peaks')
   xydata   = sp.pop('xydata')
+  compospectra = sp.pop('Spectra', None)
+  composamples = sp.pop('Samples', None)
+  
+  if compospectra:
+    comments += " " + " | ".join([cs.replace("=", "").replace(" ","_") for cs in compospectra])
   
   #verbose
   if verbose:
