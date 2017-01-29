@@ -213,10 +213,10 @@ def main():
       remove = False     
       maxval = max(sumsp['xydata'].values())
       for m in options.mass:
-        if m in sumsp['xydata']:
-          if sumsp['xydata'][m] > (maxval * 0.01 * options.percent):     #remove group
+        if str(m) in sumsp['xydata']:
+          if int(sumsp['xydata'][str(m)]) > (maxval * 0.01 * options.percent):     #remove group
             if options.verbose:
-              print(" --> G" + c + " m/z=" + str(m) + " y-value=" + str(sumsp['xydata'][m]) + " threshold=" + str(maxval * 0.01 * options.percent))
+              print(" --> G" + c + " m/z=" + str(m) + " y-value=" + str(sumsp['xydata'][str(m)]) + " threshold=" + str(maxval * 0.01 * options.percent))
             remove = True
 
       # final decission

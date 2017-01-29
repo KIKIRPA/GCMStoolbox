@@ -3,6 +3,7 @@
 
 import sys
 import os
+import pprint
 import json
 import time
 from collections import OrderedDict
@@ -15,8 +16,8 @@ def main():
   
 
 # GCMStoolbox version
-version = "2.0"
-date    = "11 Jan 2017"  #12 chars!
+version = "2.1"
+date    = "27 Jan 2017"  #12 chars!
 
 
 # ELinC resin names
@@ -40,7 +41,12 @@ resin = { "BLK0000": "BLA",
           "BLK0065": "HCN",
           "BLK0066": "HCF",
           "BLK0067": "CON",
-          "BLK0070": "MAD"
+          "BLK0070": "MAD",
+          "BLK0079": "DAE",
+          "BLK0080": "DRA",
+          "REF0145": "DRA",
+          "REF0149": "DRA",
+          "REF0218": "DRA"          
         }
 
   

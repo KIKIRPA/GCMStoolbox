@@ -138,13 +138,18 @@ def main():
     name = "C" + str(c) + " RI=" + sp['RI']
     sp['DB#'] = str(c)
     
-    samples = []
+    samples = OrderedDict()
     for s in groupspectra:
-      if 'Sample' in s:   samples.append(s['Sample'])
-      elif 'Source' in s: samples.append(s['Source'])
-      else:               samples.append('Unknown')
+      if 'Sample' in s:   sample = s['Sample']
+      elif 'Source' in s: sample = s['Source']
+      else:               sample = 'Unknown'
+      signal = 0
+      if 'IS' in s: signal += int(s['IS'])
+      else :        signal = 1
+      samples[sample] = signal
+      
     sp['Spectra'] = group['spectra']
-    sp['Samples'] = samples
+    sp['Samples'] = list(samples.keys())
     
     items = ["Resin", "AAdays", "Color", "PyTemp"]
     for item in items:
@@ -189,18 +194,30 @@ def main():
   # compile a list of all measurements
   allmeas = set()
   for line in report:
-    allmeas.update(line[3])
+    allmeas.update(line[3].keys())
   
   # write report file
   with open(outfile, 'w', newline='') as fh:
     mkreport = csv.writer(fh, dialect='excel')
     mkreport.writerow(["component", "group", "spectra"] + sorted(allmeas))
     
+    # calculate total integrated signals
+    totIS = OrderedDict()
+    for m in sorted(allmeas): totIS[m] = 0
+    for s in data['spectra'].values():
+      if 'Sample' in s:   m = s['Sample']
+      elif 'Source' in s: m = s['Source']
+      else:               m = 'Unknown'
+      if m in allmeas:
+        if 'IS' in s: 
+          totIS[m] += int(s['IS'])
+    mkreport.writerow(["total IS", "", ""] + list(totIS.values()))
+    
     for line in report:
-      match = line.pop()
+      samples = line.pop()
       for m in sorted(allmeas):
-        if m in match: line.append("Y")
-        else:          line.append(" ")
+        if m in samples.keys(): line.append(samples[m])
+        else:                   line.append("")
       mkreport.writerow(line)
       
       if not options.verbose: 

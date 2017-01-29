@@ -3,7 +3,6 @@
 
 import sys
 import os
-import ntpath
 from collections import OrderedDict
 from glob import glob
 from optparse import OptionParser, OptionGroup
@@ -98,7 +97,7 @@ def main():
       gcmstoolbox.printProgress(j, k)
     
     for name, spectrum in data[mode].items():
-      writespectrum(fh, name, spectrum, options.verbose)
+      writespectrum(fh, mspfile, name, spectrum, options.verbose)
     
       # adjust progress bar
       if not options.verbose: 
@@ -120,13 +119,13 @@ def main():
   
   
   
-def writespectrum(fh, name, sp, verbose = False):
+def writespectrum(fh, fn, name, sp, verbose = False):
   # write the spectrum to the file handle line by line in NIST MSP format
   # don't mind to much about the order of the lines; we start with Name, and end with NumPeaks and the spectral data
 
   # build comments, while removing fields that don't belong in the msp
   comments = ""
-  list = ['Sample', 'Resin', 'AAdays', 'Color', 'PyTemp', 'OR', 'IS', 'RA', 'SN']
+  list = ['Sample', 'Resin', 'AAdays', 'Color', 'PyTemp', 'OR', 'IS', 'RA', 'SN', 'dRI']
   for l in list:
     val = sp.pop(l, False)
     if val:
@@ -152,9 +151,20 @@ def writespectrum(fh, name, sp, verbose = False):
   #start with the Name field (and remove it from the dictionary)
   fh.write('Name: '   + name + "\n")
   
+  # make sure we 'll have a CAS number 
+  if 'CAS#' not in sp:
+    casno = os.path.basename(fn)
+    casno = os.path.splitext(casno)[0]
+    casno += "-" + name.split(" ", 1)[0]
+    fh.write('CAS#: ' + casno + "\n")
+  
   #then iterate over the remaining items
   for key, value in sp.items():
     fh.write(key + ': ' + value + "\n")
+    
+  # make sure we'll have a source
+  if 'SOURCE' not in sp:
+    fh.write('SOURCE: ' + fn + "\n")
   
   # write comments
   fh.write('Comments: ' + comments.strip() + "\n")
