@@ -69,6 +69,8 @@ def main():
     mode = data['info']['mode']
     if mode == 'filter': mode = 'group'
     if len(options.group) != 0: mode = 'group'
+  elif options.mode.lower().startswith('s'):
+    mode = 'spectra'
   elif options.mode.lower().startswith('g'):   
     mode = 'group'
     if data['info']['mode'] == 'spectra':
@@ -82,6 +84,9 @@ def main():
     if data['info']['mode'] != 'components':
       print("  !! No components defined - run componentlib.py first\n")
       exit()
+  else:
+    print("  !! Unknown mode (possible modes are 'auto', 'spectra', 'group' and 'components'\n")
+    exit()
   
   print("Mode: " + mode)
     
