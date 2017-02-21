@@ -101,12 +101,12 @@ def main():
     splist = data[mode]
   elif mode == "group":
     for g in options.group:
-      if data['groups']['G' + str(g)]:
+      if 'G' + str(g) in data['groups']:
         # add original spectra to splist
         for s in data['groups']['G' + str(g)]['spectra']:
           splist[s] = data['spectra'][s]
         # if a component exists with a sumspectrum, add this.
-        if data['groups']['G' + str(g)]['component']:
+        if 'component' in data['groups']['G' + str(g)]:
           c = data['groups']['G' + str(g)]['component']
           splist[c] = data['components'][c]
       else:

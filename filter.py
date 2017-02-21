@@ -42,6 +42,7 @@ def main():
   
   group = OptionGroup(parser, "MAKE: Filter out groups on the number of spectra in a group")
   group.add_option("-c", "--count",      help="Minimal number of spectra per group", action="store", dest="count", type="int")
+  group.add_option("-C",                 help="Don't count multiple spectra from the same source", action="store_true", dest="sourcecount", default=False)
   parser.add_option_group(group)
   
   group = OptionGroup(parser, "MAKE: Filter out groups based on the presence of a chosen m/z")
@@ -173,8 +174,21 @@ def main():
       gcmstoolbox.printProgress(i, j)
       
     for c in list(candidates):   # iterate over a copy of the set, so we can remove things from the original while iterating
-      if data["groups"][c]["count"] >= options.count:  #remove from candidates = keep group
-        candidates.discard(c)
+      if not options.sourcecount:
+        # count number of spectra
+        if data["groups"][c]["count"] >= options.count:  #remove from candidates = keep group
+          candidates.discard(c)
+      else:
+        # count number of sources
+        spset = set()
+        nosource = 0   # also count spectra without source
+        for s in data["groups"][c]["spectra"]:
+          if "Source" in data["spectra"][s]:
+            spset.add(data["spectra"][s]["Source"])
+          else:
+            nosource += 1
+        if (len(spset) + nosource) >= options.count:  #remove from candidates = keep group
+          candidates.discard(c)
         
       # progress bar
       if not options.verbose: 
