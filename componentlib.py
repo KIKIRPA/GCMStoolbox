@@ -169,6 +169,10 @@ def main():
     # add to data
     data['components'][name] = sp
     
+    # add a "link" to the group data
+    # (used to include sumspectrum if a group library is exported) 
+    data['groups'][g]['component'] = name
+    
     # report things
     reportline = ["C" + str(c), g, " ".join(sp['Spectra']), samples]
     report.append(reportline)

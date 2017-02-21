@@ -30,6 +30,7 @@ def main():
   parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
   parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   parser.add_option("-m", "--mode",    help="Mode: auto|spectra|group|components [default:auto]", action="store", dest="mode", type="string", default="auto")
+  parser.add_option("-g", "--group",   help="Group numbers to export in group mode; multiple instances can be defined", action="append", dest="group", type="string")
   
   (options, args) = parser.parse_args()
 
@@ -67,10 +68,14 @@ def main():
   if options.mode.lower().startswith('a'):
     mode = data['info']['mode']
     if mode == 'filter': mode = 'group'
+    if len(options.group) != 0: mode = 'group'
   elif options.mode.lower().startswith('g'):   
     mode = 'group'
     if data['info']['mode'] == 'spectra':
       print("  !! No groups defined - run groups.py first\n")
+      exit()
+    if len(options.group) == 0:
+      print("  !! Group mode requires at least one group (-g)\n")
       exit()
   elif options.mode.lower().startswith('c'):
     mode = 'components'
@@ -79,30 +84,45 @@ def main():
       exit()
   
   print("Mode: " + mode)
-  if mode == 'group':
-    print("!! This mode is not yet supported\n")
-    exit()
     
     
   ### WRITE FILE
   
   print("\nProcessing mass spectra")
+  
+  # make list of spectra to be added
+  splist = OrderedDict()
+  if (mode == "spectra") or (mode == "components"):
+    splist = data[mode]
+  elif mode == "group":
+    for g in options.group:
+      if data['groups']['G' + str(g)]:
+        # add original spectra to splist
+        for s in data['groups']['G' + str(g)]['spectra']:
+          splist[s] = data['spectra'][s]
+        # if a component exists with a sumspectrum, add this.
+        if data['groups']['G' + str(g)]['component']:
+          c = data['groups']['G' + str(g)]['component']
+          splist[c] = data['components'][c]
+      else:
+        print(" !! G" + str(g) + " was not found.")
+  
+  
   with open(mspfile, "w") as fh:
-    
-    # mode: SPECTRA
     # init progress bar
     if not options.verbose: 
       j = 0
-      k = len(data[mode])
+      k = len(splist)
       gcmstoolbox.printProgress(j, k)
     
-    for name, spectrum in data[mode].items():
+    for name, spectrum in splist.items():
       writespectrum(fh, mspfile, name, spectrum, options.verbose)
     
       # adjust progress bar
       if not options.verbose: 
         j += 1
-        gcmstoolbox.printProgress(j, k)  
+        gcmstoolbox.printProgress(j, k)
+
   
   print("\nFinalised. Wrote " + mspfile + "\n")  
 
