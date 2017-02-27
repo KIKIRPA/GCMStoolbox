@@ -98,24 +98,34 @@ def main():
   data['components'] = OrderedDict()
   
   # to sort components on RI, we'll make an intermediary groups dict (ri: groupname)
-  groups = {}
-  r = 10000
-  for g, group in data['groups'].items():
-    if g not in out: #apply filter
-      if 'minRI=' in group: ri = float[group['minRI']]
-      else: 
-        ri = r
-        r += 1
-      groups[ri] = g
-  sortgroups = sorted(groups.keys())
+  groups = []
+  ris = []
+  for gid, group in data['groups'].items():
+    if gid not in out: #apply filters
+      if 'minRI' in group:
+        # find position
+        gri = float(group['minRI'])
+        pos = 0
+        for r in ris:
+          if r <= gri:
+            pos += 1 
+          else: 
+            break
+        
+        # add to groups and ris
+        groups.insert(pos, gid)
+        ris.insert(pos, gri)
+      else: #group without minRI: add to the back of the groups list
+        groups.append(gid)
 
+  # init progress bar
   if not options.verbose: 
     j = len(groups)
     gcmstoolbox.printProgress(i, j)
 
-  for ri in sortgroups:
+  # build components from the groups
+  for g in groups:
     # init
-    g = groups[ri]
     group = data['groups'][g]
     groupspectra = []
     
@@ -174,12 +184,12 @@ def main():
     data['groups'][g]['component'] = name
     
     # report things
-    reportline = ["C" + str(c), g, " ".join(sp['Spectra']), samples]
+    reportline = ["C" + str(c), g, " ".join(s.split(" ")[0] for s in sp['Spectra']), sp['RI'], samples]
     report.append(reportline)
     
     i += 1
     
-    # progress bar
+    # update progress bar
     if options.verbose:
       print("  - " + name)
     else:
@@ -198,12 +208,12 @@ def main():
   # compile a list of all measurements
   allmeas = set()
   for line in report:
-    allmeas.update(line[3].keys())
+    allmeas.update(line[4].keys())
   
   # write report file
   with open(outfile, 'w', newline='') as fh:
     mkreport = csv.writer(fh, dialect='excel')
-    mkreport.writerow(["component", "group", "spectra"] + sorted(allmeas))
+    mkreport.writerow(["component", "group", "spectra", "RI"] + sorted(allmeas))
     
     # calculate total integrated signals
     totIS = OrderedDict()
@@ -215,7 +225,7 @@ def main():
       if m in allmeas:
         if 'IS' in s: 
           totIS[m] += int(s['IS'])
-    mkreport.writerow(["total IS", "", ""] + list(totIS.values()))
+    mkreport.writerow(["total IS", "", "", ""] + list(totIS.values()))
     
     for line in report:
       samples = line.pop()
