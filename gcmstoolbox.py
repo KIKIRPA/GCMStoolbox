@@ -16,7 +16,7 @@ def main():
   
 
 # GCMStoolbox version
-version = "3.0pre"
+version = "3.0"
 date    = "27 Feb 2017"  #12 chars!
 
 
