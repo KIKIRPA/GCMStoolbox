@@ -145,7 +145,7 @@ def main():
       sp = deepcopy(groupspectra[0])
       
     # rebuild the spectra metadata (and change for single spectra things)
-    name = "C" + str(c) + " RI=" + sp['RI']
+    name = "C" + str(c) + " RI" + str(round(float(sp['RI'])))
     sp['DB#'] = str(c)
     
     samples = OrderedDict()
@@ -161,20 +161,44 @@ def main():
     sp['Spectra'] = group['spectra']
     sp['Samples'] = list(samples.keys())
     
-    items = ["Resin", "AAdays", "Color", "PyTemp"]
-    for item in items:
+    for item in ["Resin", "AAdays", "Color", "PyTemp"]:
       value = set()
       for s in groupspectra:
         if item in s:
           value.add(s[item])
       if len(value) > 0:
-        sp[item] = "-".join(sorted(value))
-    
-    # expand name
-    if 'Resin'  in sp: name += " " + sp['Resin']
-    if 'AAdays' in sp: name += " D=" + sp['AAdays']
-    if 'Color'  in sp: name += " C=" + sp['Color']
-    if 'PyTemp' in sp: name += " T=" + sp['PyTemp']
+        if item == "AAdays":
+          valueint = [ int(x) for x in value ]
+          valueint = sorted(valueint)
+          value = [ str(x) for x in valueint ]
+          # condense the list of AAdays into sequences (0,2,4,8,32 becomes 0-8,32)
+          seq = []
+          days = [0, 2, 4, 8, 16, 32, 64]
+          k = 0
+          for low in days:
+            if low in valueint:        #lower limit of sequence
+              seq.insert(k, str(low))
+              valueint.remove(low)
+              found = False
+              for high in days:   
+                if high > low:
+                  if high in valueint: #higher limit of sequence
+                    found = high
+                    valueint.remove(high)
+                  else:
+                    break
+              if found: seq[k] += "-" + str(found)
+              k += 1
+          # add possible AAdays values other than 0,2,4,8...
+          for x in valueint: seq.append(str(x))
+          sp["AAdays"] = ",".join(seq)
+          name += " " + sp['AAdays'] + "d"
+        elif item == "Color":
+          sp['Color'] = "/".join(value)
+          name += " " + sp['Color']
+        else:
+          sp[item] = "-".join(sorted(value))
+          name += " " + sp[item]
     
     # add to data
     data['components'][name] = sp

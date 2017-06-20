@@ -68,7 +68,6 @@ def main():
   if options.mode.lower().startswith('a'):
     mode = data['info']['mode']
     if mode == 'filter': mode = 'group'
-    if len(options.group) != 0: mode = 'group'
   elif options.mode.lower().startswith('s'):
     mode = 'spectra'
   elif options.mode.lower().startswith('g'):   
@@ -166,8 +165,8 @@ def writespectrum(fh, fn, name, sp, verbose = False):
   compospectra = sp.pop('Spectra', None)
   composamples = sp.pop('Samples', None)
   
-  if compospectra:
-    comments += " " + " | ".join([cs.replace("=", "").replace(" ","_") for cs in compospectra])
+  #if compospectra:   commented out: too long comments seem to prevent AMDIS to use RI
+  #  comments += " " + " | ".join([cs.replace("=", "").replace(" ","_") for cs in compospectra])
   
   #verbose
   if verbose:

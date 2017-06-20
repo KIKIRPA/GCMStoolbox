@@ -16,37 +16,64 @@ def main():
   
 
 # GCMStoolbox version
-version = "3.0"
-date    = "27 Feb 2017"  #12 chars!
+version = "3.1"
+date    = "20 Jun 2017"  #12 chars!
 
 
 # ELinC resin names
-resin = { "BLK0000": "BLA",
-          "BLK0002": "LAR",
-          "BLK0004": "MAN",
-          "BLK0005": "PIC",
-          "BLK0007": "SEE",
-          "BLK0008": "COL",
-          "BLK0009": "ABI",
+resin = { "BLANCO":  "B",
+          "BLK0001": "TR",
+          "BLK0002": "LA",
+          "BLK0004": "MNC",
+          "BLK0005": "PC",
+          "BLK0007": "S",
+          "BLK0008": "C",
+          "BLK0009": "AB",
           "BLK0012": "MAS",
-          "BLK0013": "GAM",
-          "BLK0014": "ELE",
-          "BLK0017": "KAU",
+          "BLK0013": "G",
+          "BLK0014": "E",
+          "BLK0017": "KC",
           "BLK0026": "COP",
-          "BLK0031": "STI",
-          "BLK0032": "SUM",
-          "BLK0040": "TUN",
-          "BLK0045": "EAF",
+          "BLK0028": "SB",
+          "BLK0029": "SSE",
+          "BLK0031": "SST",
+          "BLK0032": "BE1",
+          "BLK0040": "TN",
+          "BLK0041": "LI",
+          "BLK0044": "STR",
+          "BLK0045": "EAC",
           "BLK0048": "SA2",
-          "BLK0065": "HCN",
-          "BLK0066": "HCF",
-          "BLK0067": "CON",
-          "BLK0070": "MAD",
-          "BLK0079": "DAE",
-          "BLK0080": "DRA",
-          "REF0145": "DRA",
-          "REF0149": "DRA",
-          "REF0218": "DRA"          
+          "BLK0065": "HN",
+          "BLK0066": "HF",
+          "BLK0067": "CC",
+          "BLK0070": "MDC",
+          "BLK0079": "DA",
+          "BLK0080": "DR",
+          "REF0023": "AM",
+          "REF0072": "TR",
+          "REF0091": "ZC",
+          "REF0092": "ZC",
+          "REF0130": "BE2",
+          "REF0145": "DR",
+          "REF0146": "AM",
+          "REF0148": "BE2",
+          "REF0149": "DR",
+          "REF0150": "SP",
+          "REF0152": "STR",
+          "REF0160": "SA1",
+          "REF0161": "PT",
+          "REF0163": "SA1",
+          "REF0175": "AM",
+          "REF0185": "SA1",
+          "REF0190": "PT",
+          "REF0202": "ZC",
+          "REF0203": "ZC",
+          "REF0208": "BE2",
+          "REF0209": "BE2",
+          "REF0215": "TR",
+          "REF0218": "DR",
+          "REF0224": "AM",
+          "REF0233": "SA1"          
         }
 
   
@@ -141,8 +168,8 @@ def sumspectrum(*spectra, signal="IS", highest=False):
   # output a very basic spectrum: RI (if available), numpeaks and xydata
   sp = OrderedDict()
   if ri != 0:
-    sp['RI'] = str(round(ri,2))
-    sp['dRI'] = str(round(d,2))
+    sp['RI'] = str(round(ri,1))
+    sp['dRI'] = str(round(d,1))
   sp['Num Peaks'] = len(xysum)
   sp['xydata'] = xysum
   

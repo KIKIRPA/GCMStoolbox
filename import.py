@@ -309,10 +309,10 @@ def elincize(spectrum, inFile, verbose = False):
   # retrieve SAMPLECODE, AGING, COLOR, TEMPPROG from filename
   # e.g S-BLK0065-8-0B-HymCFresh-160531-480-di-med.msl
   #     | |       | |  |         |      |   |__|________ 7+8 [not used]     AMDIS parameter set
-  #     | |       | |  |         |      |_______________ 6   PY PROG        pyrolysis temperature program
+  #     | |       | |  |         |      |_______________ 6   PY PROG        pyrolysis temperature program (MUST BE 3 CHARACTERS)
   #     | |       | |  |         |______________________ 5   [not used]     analysis date
   #     | |       | |  |________________________________ 4   SAMPLE DESCR   sample description
-  #     | |       | |___________________________________ 3   AGING + COLOR  days of artificial aging and sample color
+  #     | |       | |___________________________________ 3   AGING + COLOR  days of artificial aging (MUST BE INTEGER) and sample color (MUST BE SINGLE CHARACTER)
   #     | |_______|_____________________________________ 1+2 SAMPLE CODE    code of the sample glass plate
   #     |_______________________________________________ 0   [not used]         
   
@@ -324,10 +324,17 @@ def elincize(spectrum, inFile, verbose = False):
   base = os.path.splitext(os.path.basename(inFile))[0]   #strip path and extension
   base = base.replace("_", "-").replace(" ", "").upper() #often encountered errors in the file name
   parts = base.split("-")
-  
+
+  # error checks
   if len(parts) < 7:
-    print("      ! ELinCize failed: not enough parts in " + base + "\n")
+    print("\n ! ELinCize failed: not enough parts in " + base + "\n")
     exit()
+  if parts[3][:-1].isdigit() == False:
+    print("\n ! ELinCize failed: artificial aging code incorrect in " + base + "\n")
+    exit()
+  if len(parts[6]) != 3:
+    print("\n ! ELinCize failed: incorrect pyrolysis temperature in " + base + "\n")
+    exit()  
   
   #(re)build fields
   spectrum['Sample'] = parts[1] + "-" + parts[2] + "-" + parts[3] + "-" + parts[6]
