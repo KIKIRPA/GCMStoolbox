@@ -13,16 +13,16 @@ def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
   print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (" + gcmstoolbox.date + ") *")
-  print(  "*   Licence: GNU GPL version 3.0                                              *")
+  print(  "*   Licence: GNU GPL version 3.2                                              *")
   print(  "*                                                                             *")
-  print(  "* COMPONENTLIB                                                                *")
-  print(  "*   Makes a NIST msp file with components as defined in the groups json file  *") 
+  print(  "* BUILD                                                                       *")
+  print(  "*   Builds the component spectra                                              *") 
   print(  "*                                                                             *")
   print(  "*******************************************************************************\n")
 
   ### OPTIONPARSER
   
-  usage = "usage: %prog [options] REPORT_CSV"
+  usage = "usage: %prog [options]"
   
   parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
@@ -41,13 +41,8 @@ def main():
 
   if options.verbose: print("Processing arguments...")
   
-  # input file
-  if len(args) == 0: #exit without complaining
-    print("\n!! Needs a file name for the CSV report")
-    exit()
-  elif len(args) == 1:
-    outfile = args[0]
-  else:
+  # check number of arguments
+  if len(args) != 0: #exit without complaining
     print("\n!! Too many arguments")
     exit()
   
@@ -94,7 +89,7 @@ def main():
   print("\nBuild components...")
   
   i = 0  # we'll use this both for the progress bar and for the component number (i + options.c, if options.preserve is false)
-  report = []
+  #report = []
   data['components'] = OrderedDict()
   
   # to sort components on RI, we'll make an intermediary groups dict (ri: groupname)
@@ -207,10 +202,12 @@ def main():
     # (used to include sumspectrum if a group library is exported) 
     data['groups'][g]['component'] = name
     
+    """
     # report things
     reportline = ["C" + str(c), g, " ".join(s.split(" ")[0] for s in sp['Spectra']), sp['RI'], samples]
     report.append(reportline)
-    
+    """
+
     i += 1
     
     # update progress bar
@@ -222,6 +219,7 @@ def main():
 
   ### MAKE REPORT
   
+  """ 
   print("\nGenerating report...")
   
   if not options.verbose: 
@@ -263,7 +261,8 @@ def main():
         j = len(report)
         gcmstoolbox.printProgress(i, j)
       
-  print(" => Wrote " + outfile)
+  print(" => Wrote " + outfile) 
+  """
 
 
    ### SAVE OUTPUT JSON
