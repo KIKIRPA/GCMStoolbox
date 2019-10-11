@@ -49,7 +49,7 @@ def main():
   # check and read JSON input file
   data = gcmstoolbox.openJSON(options.jsonin)
   if data['info']['mode'] == 'spectra':
-    print("\n!! Cannot filter on ungrouped spectra.")
+    print("\n!! Cannot build components using ungrouped spectra.")
     exit()
   
   # json output 
