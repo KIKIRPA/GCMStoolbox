@@ -118,21 +118,34 @@ def main():
       while True:
         # read spectra
         inFile = os.path.basename(inFile)
-        spectrum = readspectrum(fh, inFile, i, norm=options.n, allModels=options.allmodels, elinc=options.elinc, verbose=options.verbose)
+        spectrum = readspectrum(fh, inFile, i, norm=options.n, elinc=options.elinc, verbose=options.verbose)
         
+        # break from while loop if readspectrum returns False (<= EOF)
         if spectrum == "eof": 
-          break   # break from while loop if readspectrum returns False (<= EOF)
-        elif spectrum != "skip":          
-          # apply special ELinC formatting
-          if options.elinc:
-            elincize(spectrum, inFile, verbose=options.verbose)
-          
-          # write spectrum
-          key = spectrum.pop('Name')
-          data['spectra'][key] = spectrum
-          
-          # increase spectrum number
-          i = i + 1
+          break
+
+        # apply special ELinC formatting
+        if options.elinc:
+          elincize(spectrum, inFile, verbose=options.verbose)
+
+        # store only the Amdis model with the lowest OR (except if options.allmodels command line option is active)
+        if not options.allmodels and ('OR' in spectrum):
+          # check if spectrum exists already (with another OR-value)
+          name = spectrum['Name']
+          if name in data['spectra']:
+            # if the new spectrum has higher OR than the stored spectrum, skip this one
+            if spectrum['OR'] >= data['spectra'][name]['OR']:
+              if options.verbose: print("   - Skipping: a more likely model is already stored")
+              continue
+            else:
+              if options.verbose: print("   - Replacing an already stored less likely model")
+
+        # write spectrum
+        key = spectrum.pop('Name')
+        data['spectra'][key] = spectrum
+        
+        # increase spectrum number
+        i = i + 1
           
     # adjust progress bar
     if not options.verbose: 
@@ -150,7 +163,7 @@ def main():
 
 
 
-def readspectrum(fh, inFile, i = 0, norm = 999, elu = False, allModels = False, elinc=False, verbose = False):
+def readspectrum(fh, inFile, i = 0, norm = 999, elu = False, elinc=False, verbose = False):
   # we expect that each spectrum starts with 'name' (case insensitive)
   # we use this as a trigger to start recording the metadata, reading the filehandle line by line  numpeaks is reached, we return the data as a dictonary
   
@@ -176,10 +189,6 @@ def readspectrum(fh, inFile, i = 0, norm = 999, elu = False, allModels = False, 
         if i != 0: print(" - Reading spectrum " + str(i) + ": " + spectrum.get('Name'))
         else:      print(" - Reading spectrum: " + spectrum.get('Name'))
       
-      #elu file: don't read secondary order models if not required
-      if elu and not allModels:
-        if "|OR1" not in spectrum['Name']: return "skip"
-      
       ### NEXT LINES
       
       for nextline in fh:
@@ -194,7 +203,7 @@ def readspectrum(fh, inFile, i = 0, norm = 999, elu = False, allModels = False, 
           
           elif nextline.casefold().startswith('num peaks'):  #numpeaks: switch from readmeta to readdata mode
             # time to extract extra information for elu and elinc files 
-            if elu:   eluFile(spectrum, inFile, allModels)
+            if elu:   eluFile(spectrum, inFile)
             if elinc: elincize(spectrum, inFile, verbose = False)
  
             # final piece of metadata; we'll add this to spectrum after normalisation and recalculation!!
@@ -280,7 +289,7 @@ def readspectrum(fh, inFile, i = 0, norm = 999, elu = False, allModels = False, 
 
 
 
-def eluFile(spectrum, inFile, allModels = False):
+def eluFile(spectrum, inFile):
   # example "|SC15|CN2|MP1-MODN:81(%84.3)|AM25664|PC32|SN27|WD5.4|TA4.5|TR14.0|FR12-20|RT2.1366|MN2.7|RA0.00403|IS394917|XN425813|RI740.7|MO4: 81 79 77 96|EW1-0|FG0.843|TN3.585|OR1|NT1"
   
   eluNameParts = spectrum['Name'].split('|')
@@ -290,8 +299,8 @@ def eluFile(spectrum, inFile, allModels = False):
     elif p.startswith('IS'): spectrum['IS'] = p[2:]  # integrated signal (deconvoluted peakarea)
     elif p.startswith('RA'): spectrum['RA'] = p[2:]  # relative amount to TIC
     elif p.startswith('SN'): spectrum['SN'] = p[2:]  # signal to noise ratio
-    elif p.startswith('OR') and allModels:
-                             spectrum['OR'] = p[2:]  # order number of Amdis models (starts with 1)
+    elif p.startswith('MP'): spectrum['MP'] = p[2:]  # Amdis model peak information
+    elif p.startswith('OR'): spectrum['OR'] = p[2:]  # order number of Amdis models (lower = higher probability)
   
   spectrum['Source'] = inFile
   
