@@ -140,21 +140,18 @@ def main():
       sp = deepcopy(groupspectra[0])
       
     # rebuild the spectra metadata (and change for single spectra things)
-    name = "C" + str(c) + " RI" + str(round(float(sp['RI'])))
+    name = "C{} RI{}".format(str(c), str(round(float(sp['RI']))))
     sp['DB#'] = str(c)
     
-    samples = OrderedDict()
+    samples = []
     for s in groupspectra:
-      if 'Sample' in s:   sample = s['Sample']
-      elif 'Source' in s: sample = s['Source']
-      else:               sample = 'Unknown'
-      signal = 0
-      if 'IS' in s: signal += int(s['IS'])
-      else :        signal = 1
-      samples[sample] = signal
+      if 'Sample' in s:   samples.append = s['Sample']
+      elif 'Source' in s: samples.append = s['Source']
+      else:               samples.append = 'Unknown'
       
     sp['Spectra'] = group['spectra']
-    sp['Samples'] = list(samples.keys())
+    sp['Samples'] = samples.keys
+    sp['Group'] = g
     
     for item in ["Resin", "AAdays", "Color", "PyTemp"]:
       value = set()
@@ -201,12 +198,6 @@ def main():
     # add a "link" to the group data
     # (used to include sumspectrum if a group library is exported) 
     data['groups'][g]['component'] = name
-    
-    """
-    # report things
-    reportline = ["C" + str(c), g, " ".join(s.split(" ")[0] for s in sp['Spectra']), sp['RI'], samples]
-    report.append(reportline)
-    """
 
     i += 1
     
@@ -215,54 +206,6 @@ def main():
       print("  - " + name)
     else:
       gcmstoolbox.printProgress(i, j)
-
-
-  ### MAKE REPORT
-  
-  """ 
-  print("\nGenerating report...")
-  
-  if not options.verbose: 
-    i = 0
-    j = len(report)
-    gcmstoolbox.printProgress(i, j)
-  
-  # compile a list of all measurements
-  allmeas = set()
-  for line in report:
-    allmeas.update(line[4].keys())
-  
-  # write report file
-  with open(outfile, 'w', newline='') as fh:
-    mkreport = csv.writer(fh, dialect='excel')
-    mkreport.writerow(["component", "group", "spectra", "RI"] + sorted(allmeas))
-    
-    # calculate total integrated signals
-    totIS = OrderedDict()
-    for m in sorted(allmeas): totIS[m] = 0
-    for s in data['spectra'].values():
-      if 'Sample' in s:   m = s['Sample']
-      elif 'Source' in s: m = s['Source']
-      else:               m = 'Unknown'
-      if m in allmeas:
-        if 'IS' in s: 
-          totIS[m] += int(s['IS'])
-    mkreport.writerow(["total IS", "", "", ""] + list(totIS.values()))
-    
-    for line in report:
-      samples = line.pop()
-      for m in sorted(allmeas):
-        if m in samples.keys(): line.append(samples[m])
-        else:                   line.append("")
-      mkreport.writerow(line)
-      
-      if not options.verbose: 
-        i += 1
-        j = len(report)
-        gcmstoolbox.printProgress(i, j)
-      
-  print(" => Wrote " + outfile) 
-  """
 
 
    ### SAVE OUTPUT JSON
