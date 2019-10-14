@@ -16,8 +16,8 @@ def main():
   
 
 # GCMStoolbox version
-version = "3.1"
-date    = "20 Jun 2017"  #12 chars!
+version = "pre-4"        #5 chars!
+date    = "14 Oct 2019"  #12 chars!
 
 
 # ELinC resin names
