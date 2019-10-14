@@ -116,6 +116,7 @@ def main():
     if options.verbose: print("\nProcessing file: " + inFile)
 
     with open(inFile,'r') as fh:   #file handle closes itself 
+      lastSpectrum = False
       while True:
         # read spectra
         inFile = os.path.basename(inFile)
@@ -130,20 +131,21 @@ def main():
           elincize(spectrum, inFile, verbose=options.verbose)
 
         # store only the Amdis model with the lowest OR (except if options.allmodels command line option is active)
-        if not options.allmodels and ('OR' in spectrum):
-          # check if spectrum exists already (with another OR-value)
-          name = spectrum['Name']
-          if name in data['spectra']:
-            # if the new spectrum has higher OR than the stored spectrum, skip this one
-            if spectrum['OR'] >= data['spectra'][name]['OR']:
-              if options.verbose: print("   - Skipping: a more likely model is already stored")
-              continue
-            else:
-              if options.verbose: print("   - Replacing an already stored less likely model")
+        if not options.allmodels and ('OR' in spectrum) and ('RI' in spectrum):
+          # check if the previous spectrum in the the ELU file is another model for the same scan (same RI, other OR)
+          if lastSpectrum:
+            if spectrum['RI'] == data['spectra'][lastSpectrum]['RI']:
+              # if the new spectrum has higher OR than the stored spectrum, skip this one
+              if spectrum['OR'] >= data['spectra'][lastSpectrum]['OR']:
+                if options.verbose: print("   - Skipping: a more likely model is already stored")
+                continue
+              else:
+                if options.verbose: print("   - Replacing an already stored less likely model")
 
         # write spectrum
         key = spectrum.pop('Name')
         data['spectra'][key] = spectrum
+        lastSpectrum = key
         
         # increase spectrum number
         i = i + 1
