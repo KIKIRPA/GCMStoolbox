@@ -120,7 +120,7 @@ def main():
       while True:
         # read spectra
         inFile = os.path.basename(inFile)
-        spectrum = readspectrum(fh, inFile, i, norm=options.n, elinc=options.elinc, verbose=options.verbose)
+        spectrum = readspectrum(fh, inFile, norm=options.n, elinc=options.elinc, verbose=options.verbose)
         
         # break from while loop if readspectrum returns False (<= EOF)
         if spectrum == "eof": 
@@ -137,18 +137,25 @@ def main():
             if spectrum['RI'] == data['spectra'][lastSpectrum]['RI']:
               # if the new spectrum has higher OR than the stored spectrum, skip this one
               if spectrum['OR'] >= data['spectra'][lastSpectrum]['OR']:
-                if options.verbose: print("   - Skipping: a more likely model is already stored")
+                if options.verbose: print("    - Skipping: a more likely model is already stored")
                 continue
               else:
-                if options.verbose: print("   - Replacing an already stored less likely model")
+                if options.verbose: print("    - Replacing an already stored less likely model")
+                # it's a bit messy, but in order to overwrite a spectrum we need to 
+                del data['spectra'][lastSpectrum]  # (1) remove the old
+                i -= 1                             # (2) reduce the iterator
 
         # write spectrum
+        spectrum['DB#'] = str(i)
         key = spectrum.pop('Name')
+        key = 'S{} {}'.format(i, key)
         data['spectra'][key] = spectrum
+
+        # keep track of the previous spectrum in case of ELU models for the same peak
         lastSpectrum = key
         
         # increase spectrum number
-        i = i + 1
+        i += 1
           
     # adjust progress bar
     if not options.verbose: 
@@ -166,7 +173,7 @@ def main():
 
 
 
-def readspectrum(fh, inFile, i = 0, norm = 999, elu = False, elinc=False, verbose = False):
+def readspectrum(fh, inFile,norm = 999, elu = False, elinc=False, verbose = False):
   # we expect that each spectrum starts with 'name' (case insensitive)
   # we use this as a trigger to start recording the metadata, reading the filehandle line by line  numpeaks is reached, we return the data as a dictonary
   
@@ -181,7 +188,7 @@ def readspectrum(fh, inFile, i = 0, norm = 999, elu = False, elinc=False, verbos
       #initialize some data
       spectrum = OrderedDict()
       spectrum['Name'] = line.split(':', 1)[1].strip()
-      if i != 0: spectrum['DB#'] = str(i)
+      spectrum['DB#'] = '0'   # we'll set this later
       
       readmeta = True
       readdata = False
@@ -189,8 +196,7 @@ def readspectrum(fh, inFile, i = 0, norm = 999, elu = False, elinc=False, verbos
       
       #verbose
       if verbose:
-        if i != 0: print(" - Reading spectrum " + str(i) + ": " + spectrum.get('Name'))
-        else:      print(" - Reading spectrum: " + spectrum.get('Name'))
+        print(" - Reading spectrum: " + spectrum.get('Name'))
       
       ### NEXT LINES
       
@@ -307,8 +313,7 @@ def eluFile(spectrum, inFile):
   
   spectrum['Source'] = inFile
   
-  spectrum['Name'] = ( "S" + spectrum['DB#'] 
-                       + ((" RI=" + spectrum['RI']) if 'RI' in spectrum else "")
+  spectrum['Name'] = (   (( "RI=" + spectrum['RI']) if 'RI' in spectrum else "")
                        + ((" IS=" + spectrum['IS']) if 'IS' in spectrum else "")
                        + ((" SN=" + spectrum['SN']) if 'SN' in spectrum else "")
                        + " " + os.path.splitext(spectrum['Source'])[0]
@@ -357,8 +362,7 @@ def elincize(spectrum, inFile, verbose = False):
   
   spectrum['Source'] = inFile
   
-  spectrum['Name']   = ( "S" + spectrum['DB#'] 
-                         + ((" RI=" + spectrum['RI']) if 'RI' in spectrum else "")
+  spectrum['Name']   = (   (( "RI=" + spectrum['RI']) if 'RI' in spectrum else "")
                          + ((" IS=" + spectrum['IS']) if 'IS' in spectrum else "")
                          + ((" SN=" + spectrum['SN']) if 'SN' in spectrum else "")
                          + " " + spectrum['Sample']
