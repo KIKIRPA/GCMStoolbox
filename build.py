@@ -146,12 +146,12 @@ def main():
     
     samples = []
     for s in groupspectra:
-      if 'Sample' in s:   samples.append = s['Sample']
-      elif 'Source' in s: samples.append = s['Source']
-      else:               samples.append = 'Unknown'
+      if 'Sample' in s:   samples.append(s['Sample'])
+      elif 'Source' in s: samples.append(s['Source'])
+      else:               samples.append('Unknown')
       
     sp['Spectra'] = group['spectra']
-    sp['Samples'] = samples.keys
+    sp['Samples'] = samples
     sp['Group'] = g
     
     for item in ["Resin", "AAdays", "Color", "PyTemp"]:
