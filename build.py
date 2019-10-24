@@ -143,15 +143,6 @@ def main():
     # rebuild the spectra metadata (and change for single spectra things)
     name = "C{} RI{}".format(str(c), str(round(float(sp['RI']))))
     sp['DB#'] = str(c)
-    
-    samples = []
-    for s in groupspectra:
-      if 'Sample' in s:   samples.append(s['Sample'])
-      elif 'Source' in s: samples.append(s['Source'])
-      else:               samples.append('Unknown')
-      
-    sp['Samples'] = sorted(list(dict.fromkeys(samples)))    # remove doubles
-    
     sp['Group'] = g
     sp['Spectra'] = group['spectra']
     
@@ -192,6 +183,8 @@ def main():
           name += " " + ",".join(seq) + "d"
         elif item == "Color":
           name += " " + "/".join(sorted(values))
+        elif item == "Sample":
+          pass
         else:
           name += " " + "-".join(sorted(values))
     
