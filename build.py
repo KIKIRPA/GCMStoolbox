@@ -146,7 +146,7 @@ def main():
     sp['Group'] = g
     sp['Spectra'] = group['spectra']
     
-    for item in ["Sample", "Resin", "AAdays", "Color", "PyTemp"]:
+    for item in ["Source", "Sample", "Resin", "AAdays", "Color", "PyTemp"]:
       values = set()
       for s in groupspectra:
         if item in s:
@@ -183,6 +183,8 @@ def main():
           name += " " + ",".join(seq) + "d"
         elif item == "Color":
           name += " " + "/".join(sorted(values))
+        elif item == "Source":
+          pass
         elif item == "Sample":
           pass
         else:
