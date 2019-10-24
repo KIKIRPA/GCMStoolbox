@@ -150,48 +150,50 @@ def main():
       elif 'Source' in s: samples.append(s['Source'])
       else:               samples.append('Unknown')
       
-    sp['Spectra'] = group['spectra']
-    sp['Samples'] = samples
-    sp['Group'] = g
+    sp['Samples'] = sorted(list(dict.fromkeys(samples)))    # remove doubles
     
-    for item in ["Resin", "AAdays", "Color", "PyTemp"]:
-      value = set()
+    sp['Group'] = g
+    sp['Spectra'] = group['spectra']
+    
+    for item in ["Sample", "Resin", "AAdays", "Color", "PyTemp"]:
+      values = set()
       for s in groupspectra:
         if item in s:
-          value.add(s[item])
-      if len(value) > 0:
+          values.add(s[item])
+      
+      if len(values) > 0:
+        # store as list in component
+        sp[item] = sorted(values)
+
+        # and add it to the component name
         if item == "AAdays":
-          valueint = [ int(x) for x in value ]
-          valueint = sorted(valueint)
-          value = [ str(x) for x in valueint ]
+          valuesInt = [ int(x) for x in values ]
+          valuesInt = sorted(valuesInt)
           # condense the list of AAdays into sequences (0,2,4,8,32 becomes 0-8,32)
           seq = []
           days = [0, 2, 4, 8, 16, 32, 64]
           k = 0
           for low in days:
-            if low in valueint:        #lower limit of sequence
+            if low in valuesInt:        #lower limit of sequence
               seq.insert(k, str(low))
-              valueint.remove(low)
+              valuesInt.remove(low)
               found = False
               for high in days:   
                 if high > low:
-                  if high in valueint: #higher limit of sequence
+                  if high in valuesInt: #higher limit of sequence
                     found = high
-                    valueint.remove(high)
+                    valuesInt.remove(high)
                   else:
                     break
               if found: seq[k] += "-" + str(found)
               k += 1
           # add possible AAdays values other than 0,2,4,8...
-          for x in valueint: seq.append(str(x))
-          sp["AAdays"] = ",".join(seq)
-          name += " " + sp['AAdays'] + "d"
+          for x in valuesInt: seq.append(str(x)) 
+          name += " " + ",".join(seq) + "d"
         elif item == "Color":
-          sp['Color'] = "/".join(value)
-          name += " " + sp['Color']
+          name += " " + "/".join(sorted(values))
         else:
-          sp[item] = "-".join(sorted(value))
-          name += " " + sp[item]
+          name += " " + "-".join(sorted(values))
     
     # add to data
     data['components'][name] = sp

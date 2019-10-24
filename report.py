@@ -65,22 +65,30 @@ def main():
 ### READ COMPONENTS
 
   print("\nRunning through components...")
+  report = []
+
+  if not options.verbose: 
+    i = 0
+    j = len(data['components'])
+    gcmstoolbox.printProgress(i, j)
   
-  for c in data['components']
+  for c in data['components']:
     component = data['components'][c]
 
     # TODO spectrum --> groupby-categories
     intensities = OrderedDict()
     spectrumcount = 0
+
     for s in component['Spectra']:
       spectrum = data['spectra'][s]
-      if 'Sample' in s:   intensities = spectrum['Sample']
-      elif 'Source' in s: intensities = spectrum['Source']
-      else:               intensities = 'Unknown'
-      sumIS = 0
-      if 'IS' in s: sumIS += int(spectrum['IS'])
-      else :        sumIS = 1
-      intensities[sample] = sumIS
+      if 'Sample' in s:   cat = spectrum['Sample']
+      elif 'Source' in s: cat = spectrum['Source']
+      else:               cat = 'Unknown'
+
+      if cat not in intensities: intensities[cat] = 0
+      if 'IS' in s: intensities[cat] += int(spectrum['IS'])
+      else :        intensities[cat] += 1
+
       spectrumcount += 1
 
     # report things
@@ -126,17 +134,21 @@ def main():
     # TODO spectrum --> groupby-categories
     intensities = OrderedDict()
     spectrumcount = OrderedDict()
+
     for category in sorted(categories): 
       intensities[category] = 0
       spectrumcount[category] = 0
+
     for s in data['spectra'].values():
       if 'Sample' in s:   spCategory = s['Sample']
       elif 'Source' in s: spCategory = s['Source']
       else:               spCategory = 'Unknown'
+
       if spCategory in categories:
         if 'IS' in s: 
           intensities[spCategory] += int(s['IS'])
           spectrumcount[spCategory] += 1
+
     mkreport.writerow(["total IS", "", "", "", ""] + list(intensities.values()))
     mkreport.writerow(["number of spectra", "", "", "", ""] + list(spectrumcount.values()))
     
