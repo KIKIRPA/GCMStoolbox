@@ -28,7 +28,7 @@ def main():
   parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
-  parser.add_option("-g", "--groupby", help="Group measurements", action="store", dest="group_by", type="string", default="sample")
+  parser.add_option("-g", "--groupby", help="Group measurements by categories (eg. Source, Sample, AAdays, Resin...)", action="store", dest="groupby", type="string", default="Source")
 
   (options, args) = parser.parse_args()
   
@@ -59,10 +59,7 @@ def main():
     print(" => JSON input file:  " + options.jsonin + "\n")
 
 
-
-
-
-### READ COMPONENTS
+  ### READ COMPONENTS
 
   print("\nRunning through components...")
   report = []
@@ -75,38 +72,112 @@ def main():
   for c in data['components']:
     component = data['components'][c]
 
-    # TODO spectrum --> groupby-categories
-    intensities = OrderedDict()
-    spectrumcount = 0
-
-    for s in component['Spectra']:
+    # check all spectra of a component and search for the group-by categories
+    for s in component['Spectra']: 
       spectrum = data['spectra'][s]
-      if 'Sample' in s:   cat = spectrum['Sample']
-      elif 'Source' in s: cat = spectrum['Source']
-      else:               cat = 'Unknown'
+      categories = OrderedDict()
 
-      if cat not in intensities: intensities[cat] = 0
-      if 'IS' in s: intensities[cat] += int(spectrum['IS'])
-      else :        intensities[cat] += 1
+      # lookup category in spectrum (or default to unknown)
+      if options.groupby in spectrum:
+        cat = spectrum[options.groupby]
+      else:
+        cat = 'unknown'
 
-      spectrumcount += 1
+      # spectrumIS
+      if 'IS' in spectrum: spectrumIS = int(spectrum['IS'])
+      else:                spectrumIS = 1
 
-    # report things
+      # store IS and count in categories
+      if cat not in categories:
+        categories[cat] = OrderedDict(
+          [('sumIS', spectrumIS), ('count', 1)]
+        )
+      else:
+        categories[cat]['sumIS'] += spectrumIS
+        categories[cat]['count'] += 1
+
+    # divide sumIS by the number of spectra
+    for cat in categories:
+      meanIS = categories[cat]['sumIS'] // categories[cat]['count'] #integer division!
+      categories[cat] = meanIS  # this is what we need to report, sumIS and count can thus be overwritten
+
+    # prepare report line for this component
     reportline = [
-      "C" + component['DB#'], # column A: component number
-      component['RI'],        # column B: component RI
-      component['dRI'],       # column C: RI difference within the component
-      spectrumcount,          # column D: number of spectra on which this group group/component was calculated
-      intensities             # ordereddict with category -> sum of intensities
+      "C" + component['DB#'],     # column A: component number
+      len(component['Spectra']),  # column B: number of spectra on which this group group/component was calculated
+      component['RI'],            # column C: component RI
+      component['dRI'],           # column D: RI difference within the component
+      categories                  # ordereddict with category -> mean intensities
     ]                                                   
-    report.append(reportline)
-    
+    report.append(reportline)    
     
     # update progress bar
     if options.verbose:
       print("  - " + c)
     else:
+      i += 1
       gcmstoolbox.printProgress(i, j)
+
+
+
+  ### CALCULATE SUM-IS 
+  
+  # the sum-IS is the sum of all spectra of a given source file
+  # in case a category is composed of multiple source files, the sum-IS is a the average
+  # (sum of the IS values of all spectra within this category, divided by the number of sources)
+
+  print("\nCalculate IS for each " + options.groupby + "...")
+
+  if not options.verbose: 
+    i = 0
+    j = len(data['spectra'])
+    gcmstoolbox.printProgress(i, j)
+
+  # compile a list of all group-by categories
+  categories = set()
+  for line in report:
+    categories.update(line[4].keys())
+  categories = sorted(categories) #convert to sorted list
+
+  # calculate sumIS and count for each category
+  catIS = dict()
+  catSpectra = dict()
+  catSources = dict()
+
+  for spectrum in data['spectra'].values():
+    if options.groupby in spectrum:
+      cat = spectrum[options.groupby]
+    else:
+      cat = 'unknown'
+
+    # spectrumIS
+    if 'IS' in spectrum: spectrumIS = int(spectrum['IS'])
+    else:                spectrumIS = 1
+
+    # store IS and count in categories
+    if cat not in catIS:
+      catIS[cat] = spectrumIS
+      catSpectra[cat] = 1
+      catSources[cat] = set()
+    else:
+      catIS[cat] += spectrumIS
+      catSpectra[cat] += 1
+    catSources[cat].add(spectrum['Source'])
+
+    # update progress bar
+    if options.verbose:
+      print("  - S{}: category {} (#{})--> added {} to summed IS".format(spectrum['DB#'], cat, catSpectra[cat], spectrumIS))
+    else:
+      i += 1
+      gcmstoolbox.printProgress(i, j)
+
+  # calculate mean IS
+  for cat in categories:
+    # count sources per category
+    catSources[cat] = len(catSources[cat])
+    # calculate average sum-IS
+    catIS[cat] = catIS[cat] // catSources[cat]
+
 
 
   ### MAKE REPORT
@@ -117,52 +188,30 @@ def main():
     i = 0
     j = len(report)
     gcmstoolbox.printProgress(i, j)
-  
-  # compile a list of all group-by categories
-  categories = set()
-  for line in report:
-    categories.update(line[4].keys())
-  
+    
   # write report file
   with open(outfile, 'w', newline='') as fh:
     mkreport = csv.writer(fh, dialect='excel')
 
-    # header
-    mkreport.writerow(["component", "RI", "dRI", "number of spectra"] + sorted(categories))
-    
-    # rows with total integrated signals and total number of spectra for each of the groupby categories 
-    # TODO spectrum --> groupby-categories
-    intensities = OrderedDict()
-    spectrumcount = OrderedDict()
-
-    for category in sorted(categories): 
-      intensities[category] = 0
-      spectrumcount[category] = 0
-
-    for s in data['spectra'].values():
-      if 'Sample' in s:   spCategory = s['Sample']
-      elif 'Source' in s: spCategory = s['Source']
-      else:               spCategory = 'Unknown'
-
-      if spCategory in categories:
-        if 'IS' in s: 
-          intensities[spCategory] += int(s['IS'])
-          spectrumcount[spCategory] += 1
-
-    mkreport.writerow(["total IS", "", "", "", ""] + list(intensities.values()))
-    mkreport.writerow(["number of spectra", "", "", "", ""] + list(spectrumcount.values()))
+    # write header rows
+    mkreport.writerow(["component",           "number of spectra", "RI", "dRI"] + categories)
+    mkreport.writerow(["(average sum-IS)",    "",                  "",   ""   ] + [catIS[cat]      for cat in categories])
+    mkreport.writerow(["(number of spectra)", "",                  "",   ""   ] + [catSpectra[cat] for cat in categories])
+    mkreport.writerow(["(number of sources)", "",                  "",   ""   ] + [catSources[cat] for cat in categories])
     
     # next rows: components
-    for line in report:
-      intensities = line.pop()
-      for category in sorted(categories):
-        if category in intensities.keys(): line.append(intensities[category])
-        else:                   line.append("")
-      mkreport.writerow(line)
+    for row in report:
+      # the last item in a report item (row) is a dict of categories and mean IS
+      # replace it with a complete and sorted list of mean IS'es
+      catIS = row.pop()
+      for cat in categories:
+        if cat in catIS: row.append(catIS[cat])
+        else:            row.append("")
+      # write row to report
+      mkreport.writerow(row)
       
       if not options.verbose: 
         i += 1
-        j = len(report)
         gcmstoolbox.printProgress(i, j)
       
   print(" => Wrote " + outfile)
