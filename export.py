@@ -150,24 +150,23 @@ def writespectrum(fh, fn, name, sp, verbose = False):
 
   # build comments, while removing fields that don't belong in the msp
   comments = ""
-  list = ['Sample', 'Resin', 'AAdays', 'Color', 'PyTemp', 'OR', 'IS', 'RA', 'SN', 'dRI']
-  for l in list:
-    val = sp.pop(l, False)
+  items = ['Sample', 'Resin', 'AAdays', 'Color', 'PyTemp', 'OR', 'IS', 'RA', 'SN', 'dRI']
+  for item in items:
+    val = sp.pop(item, False)
+    if isinstance(val, list):
+      val=";".join(val)
     if val:
-      comments += l + "=" + val.replace(" ", "_") + " "
+      comments += "{}={} ".format(item, val.replace(" ", "_"))
   if "RI" in sp:
-    comments += "RI=" + sp['RI'] + " "
+    comments += "RI={} ".format(sp['RI'])
   if "RT" in sp:
-    comments += "RT=" + sp['RT']
-  
+    comments += "RT={}".format(sp['RT'])
+
   # remove other fields
   numpeaks = sp.pop('Num Peaks')
   xydata   = sp.pop('xydata')
   compospectra = sp.pop('Spectra', None)
   composamples = sp.pop('Samples', None)
-  
-  #if compospectra:   commented out: too long comments seem to prevent AMDIS to use RI
-  #  comments += " " + " | ".join([cs.replace("=", "").replace(" ","_") for cs in compospectra])
   
   #verbose
   if verbose:
@@ -185,7 +184,11 @@ def writespectrum(fh, fn, name, sp, verbose = False):
   
   #then iterate over the remaining items
   for key, value in sp.items():
-    fh.write(key + ': ' + value + "\n")
+    # if we still have lists (eg. multiple sources, remove them)
+    if isinstance(value, list): 
+      sp.pop(key)
+    else:
+      fh.write(key + ': ' + value + "\n")
     
   # make sure we'll have a source
   if 'SOURCE' not in sp:
@@ -197,7 +200,7 @@ def writespectrum(fh, fn, name, sp, verbose = False):
   # write NumPeaks
   fh.write('Num Peaks: ' + str(numpeaks) + "\n")
   
-  # NIST MSP usually puts 5 couples on each line (although this is no requirement)
+  # NIST MSP puts 5 couples on each line
   # 1. iterate over full lines
   div = numpeaks // 5          # we have %div full lines
   for i in range(div):         
