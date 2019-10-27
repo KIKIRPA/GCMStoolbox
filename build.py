@@ -195,7 +195,8 @@ def main():
     
     # add a "link" to the group data
     # (used to include sumspectrum if a group library is exported) 
-    data['groups'][g]['component'] = name
+    # commented out, because this data remains present when components are built multiple times --> becomes ambiguous!!
+    #data['groups'][g]['component'] = name
 
     i += 1
     

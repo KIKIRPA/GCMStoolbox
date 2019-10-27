@@ -106,13 +106,15 @@ def main():
         for s in data['groups']['G' + str(g)]['spectra']:
           splist[s] = data['spectra'][s]
         # if a component exists with a sumspectrum, add this.
-        if 'component' in data['groups']['G' + str(g)]:
-          c = data['groups']['G' + str(g)]['component']
-          splist[c] = data['components'][c]
+        if 'components' in data:
+        for c in data['components']:
+          if data['components'][c]['Group'] == 'G' + str(g):
+            splist[c] = data['components'][c]
+            break
       else:
         print(" !! G" + str(g) + " was not found.")
   
-  
+
   with open(mspfile, "w") as fh:
     # init progress bar
     if not options.verbose: 
