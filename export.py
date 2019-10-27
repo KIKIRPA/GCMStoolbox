@@ -130,13 +130,12 @@ def main():
         j += 1
         gcmstoolbox.printProgress(j, k)
 
+  print("\n => Wrote {}\n".format(mspfile))
   
-  print("\nFinalised. Wrote " + mspfile + "\n")  
 
-  
   ### TRACE IN JSON FILE
   
-  if options.verbose: print("Put a trace in the JSON output file: " + options.jsonout + "\n")
+  print("\nPut a trace in the JSON output file: " + options.jsonout + "\n")
   data = gcmstoolbox.openJSON(options.jsonin)     # reread the file to be sure we haven't accidentally messed up the data
   data['info']['cmds'].append(" ".join(sys.argv)) # put a trace in the data file
   gcmstoolbox.saveJSON(data, options.jsonout)     # backup and safe json

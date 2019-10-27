@@ -28,6 +28,7 @@ def main():
   parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
   parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
+  parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   parser.add_option("-g", "--groupby", help="Group measurements by categories (eg. Source, Sample, AAdays, Resin...)", action="store", dest="groupby", type="string", default="Source")
 
   (options, args) = parser.parse_args()
@@ -54,9 +55,15 @@ def main():
   if data['info']['mode'] != "components":
     print("\n!! Reports can only be generated if the components have been built.")
     exit()
-   
+
+  # json output 
+  if options.jsonout == None: 
+    options.jsonout = options.jsonin
+
   if options.verbose:
-    print(" => JSON input file:  " + options.jsonin + "\n")
+    print(" => JSON input file:  " + options.jsonin)
+    print(" => JSON output file: " + options.jsonout)
+    print(" => Output msp file:  " + mspfile + "\n")
 
 
   ### READ COMPONENTS
@@ -214,7 +221,15 @@ def main():
         i += 1
         gcmstoolbox.printProgress(i, j)
       
-  print(" => Wrote " + outfile)
+  print("\n => Wrote {}\n".format(outfile))
+
+  ### TRACE IN JSON FILE
+  
+  print("\nPut a trace in the JSON output file: " + options.jsonout + "\n")
+  data = gcmstoolbox.openJSON(options.jsonin)     # reread the file to be sure we haven't accidentally messed up the data
+  data['info']['cmds'].append(" ".join(sys.argv)) # put a trace in the data file
+  gcmstoolbox.saveJSON(data, options.jsonout)     # backup and safe json
+
   exit()
   
     
