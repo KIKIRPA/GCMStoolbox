@@ -107,10 +107,10 @@ def main():
           splist[s] = data['spectra'][s]
         # if a component exists with a sumspectrum, add this.
         if 'components' in data:
-        for c in data['components']:
-          if data['components'][c]['Group'] == 'G' + str(g):
-            splist[c] = data['components'][c]
-            break
+          for c in data['components']:
+            if data['components'][c]['Group'] == 'G' + str(g):
+              splist[c] = data['components'][c]
+              break
       else:
         print(" !! G" + str(g) + " was not found.")
   
@@ -131,7 +131,7 @@ def main():
         gcmstoolbox.printProgress(j, k)
 
   print("\n => Wrote {}\n".format(mspfile))
-  
+
 
   ### TRACE IN JSON FILE
   
