@@ -77,12 +77,12 @@ def main():
     gcmstoolbox.printProgress(i, j)
   
   for c in data['components']:
+    categories = OrderedDict()
     component = data['components'][c]
 
     # check all spectra of a component and search for the group-by categories
     for s in component['Spectra']: 
       spectrum = data['spectra'][s]
-      categories = OrderedDict()
 
       # lookup category in spectrum (or default to unknown)
       if options.groupby in spectrum:
