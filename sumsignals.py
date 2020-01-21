@@ -12,8 +12,9 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (" + gcmstoolbox.date + ") *")
-  print(  "*   Licence: GNU GPL version 3.0                                              *")
+  print(  "*   Version: {} ({})                                             *".format(gcmstoolbox.version, gcmstoolbox.date))
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *")
+  print(  "*   Licence: GNU GPL version 3                                                *")
   print(  "*                                                                             *")
   print(  "* SUMSIGNALS:                                                                 *")
   print(  "*   calculates the sum of 'integrated signals' and 'relative amounts' for     *")

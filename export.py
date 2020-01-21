@@ -12,8 +12,9 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (" + gcmstoolbox.date + ") *")
-  print(  "*   Licence: GNU GPL version 3.0                                              *")
+  print(  "*   Version: {} ({})                                             *".format(gcmstoolbox.version, gcmstoolbox.date))
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *")
+  print(  "*   Licence: GNU GPL version 3                                                *")
   print(  "*                                                                             *")
   print(  "* EXPORT:                                                                     *")
   print(  "*   export the GCMStoolbox data file (JSON) into NIST MS SEARCH format (.msp) *")
@@ -105,13 +106,15 @@ def main():
         for s in data['groups']['G' + str(g)]['spectra']:
           splist[s] = data['spectra'][s]
         # if a component exists with a sumspectrum, add this.
-        if 'component' in data['groups']['G' + str(g)]:
-          c = data['groups']['G' + str(g)]['component']
-          splist[c] = data['components'][c]
+        if 'components' in data:
+          for c in data['components']:
+            if data['components'][c]['Group'] == 'G' + str(g):
+              splist[c] = data['components'][c]
+              break
       else:
         print(" !! G" + str(g) + " was not found.")
   
-  
+
   with open(mspfile, "w") as fh:
     # init progress bar
     if not options.verbose: 
@@ -127,13 +130,12 @@ def main():
         j += 1
         gcmstoolbox.printProgress(j, k)
 
-  
-  print("\nFinalised. Wrote " + mspfile + "\n")  
+  print("\n => Wrote {}\n".format(mspfile))
 
-  
+
   ### TRACE IN JSON FILE
   
-  if options.verbose: print("Put a trace in the JSON output file: " + options.jsonout + "\n")
+  print("\nPut a trace in the JSON output file: " + options.jsonout + "\n")
   data = gcmstoolbox.openJSON(options.jsonin)     # reread the file to be sure we haven't accidentally messed up the data
   data['info']['cmds'].append(" ".join(sys.argv)) # put a trace in the data file
   gcmstoolbox.saveJSON(data, options.jsonout)     # backup and safe json
@@ -149,24 +151,23 @@ def writespectrum(fh, fn, name, sp, verbose = False):
 
   # build comments, while removing fields that don't belong in the msp
   comments = ""
-  list = ['Sample', 'Resin', 'AAdays', 'Color', 'PyTemp', 'OR', 'IS', 'RA', 'SN', 'dRI']
-  for l in list:
-    val = sp.pop(l, False)
+  items = ['Sample', 'Resin', 'AAdays', 'Color', 'PyTemp', 'OR', 'IS', 'RA', 'SN', 'dRI']
+  for item in items:
+    val = sp.pop(item, False)
+    if isinstance(val, list):
+      val=";".join(val)
     if val:
-      comments += l + "=" + val.replace(" ", "_") + " "
+      comments += "{}={} ".format(item, val.replace(" ", "_"))
   if "RI" in sp:
-    comments += "RI=" + sp['RI'] + " "
+    comments += "RI={} ".format(sp['RI'])
   if "RT" in sp:
-    comments += "RT=" + sp['RT']
-  
+    comments += "RT={}".format(sp['RT'])
+
   # remove other fields
   numpeaks = sp.pop('Num Peaks')
   xydata   = sp.pop('xydata')
   compospectra = sp.pop('Spectra', None)
   composamples = sp.pop('Samples', None)
-  
-  #if compospectra:   commented out: too long comments seem to prevent AMDIS to use RI
-  #  comments += " " + " | ".join([cs.replace("=", "").replace(" ","_") for cs in compospectra])
   
   #verbose
   if verbose:
@@ -184,7 +185,11 @@ def writespectrum(fh, fn, name, sp, verbose = False):
   
   #then iterate over the remaining items
   for key, value in sp.items():
-    fh.write(key + ': ' + value + "\n")
+    # if we still have lists (eg. multiple sources, remove them)
+    if isinstance(value, list): 
+      sp.pop(key)
+    else:
+      fh.write(key + ': ' + value + "\n")
     
   # make sure we'll have a source
   if 'SOURCE' not in sp:
@@ -196,7 +201,7 @@ def writespectrum(fh, fn, name, sp, verbose = False):
   # write NumPeaks
   fh.write('Num Peaks: ' + str(numpeaks) + "\n")
   
-  # NIST MSP usually puts 5 couples on each line (although this is no requirement)
+  # NIST MSP puts 5 couples on each line
   # 1. iterate over full lines
   div = numpeaks // 5          # we have %div full lines
   for i in range(div):         

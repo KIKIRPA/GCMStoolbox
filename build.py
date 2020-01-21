@@ -12,17 +12,18 @@ import gcmstoolbox
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (" + gcmstoolbox.date + ") *")
-  print(  "*   Licence: GNU GPL version 3.0                                              *")
+  print(  "*   Version: {} ({})                                             *".format(gcmstoolbox.version, gcmstoolbox.date))
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *")
+  print(  "*   Licence: GNU GPL version 3                                                *")
   print(  "*                                                                             *")
-  print(  "* COMPONENTLIB                                                                *")
-  print(  "*   Makes a NIST msp file with components as defined in the groups json file  *") 
+  print(  "* BUILD                                                                       *")
+  print(  "*   Builds the component spectra                                              *") 
   print(  "*                                                                             *")
   print(  "*******************************************************************************\n")
 
   ### OPTIONPARSER
   
-  usage = "usage: %prog [options] REPORT_CSV"
+  usage = "usage: %prog [options]"
   
   parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
   parser.add_option("-v", "--verbose",  help="Be very verbose",  action="store_true", dest="verbose", default=False)
@@ -41,20 +42,15 @@ def main():
 
   if options.verbose: print("Processing arguments...")
   
-  # input file
-  if len(args) == 0: #exit without complaining
-    print("\n!! Needs a file name for the CSV report")
-    exit()
-  elif len(args) == 1:
-    outfile = args[0]
-  else:
+  # check number of arguments
+  if len(args) != 0: #exit without complaining
     print("\n!! Too many arguments")
     exit()
   
   # check and read JSON input file
   data = gcmstoolbox.openJSON(options.jsonin)
   if data['info']['mode'] == 'spectra':
-    print("\n!! Cannot filter on ungrouped spectra.")
+    print("\n!! Cannot build components using ungrouped spectra.")
     exit()
   
   # json output 
@@ -94,7 +90,7 @@ def main():
   print("\nBuild components...")
   
   i = 0  # we'll use this both for the progress bar and for the component number (i + options.c, if options.preserve is false)
-  report = []
+  #report = []
   data['components'] = OrderedDict()
   
   # to sort components on RI, we'll make an intermediary groups dict (ri: groupname)
@@ -145,72 +141,63 @@ def main():
       sp = deepcopy(groupspectra[0])
       
     # rebuild the spectra metadata (and change for single spectra things)
-    name = "C" + str(c) + " RI" + str(round(float(sp['RI'])))
+    name = "C{} RI{}".format(str(c), str(round(float(sp['RI']))))
     sp['DB#'] = str(c)
-    
-    samples = OrderedDict()
-    for s in groupspectra:
-      if 'Sample' in s:   sample = s['Sample']
-      elif 'Source' in s: sample = s['Source']
-      else:               sample = 'Unknown'
-      signal = 0
-      if 'IS' in s: signal += int(s['IS'])
-      else :        signal = 1
-      samples[sample] = signal
-      
+    sp['Group'] = g
     sp['Spectra'] = group['spectra']
-    sp['Samples'] = list(samples.keys())
     
-    for item in ["Resin", "AAdays", "Color", "PyTemp"]:
-      value = set()
+    for item in ["Source", "Sample", "Resin", "AAdays", "Color", "PyTemp"]:
+      values = set()
       for s in groupspectra:
         if item in s:
-          value.add(s[item])
-      if len(value) > 0:
+          values.add(s[item])
+      
+      if len(values) > 0:
+        # store as list in component
+        sp[item] = sorted(values)
+
+        # and add it to the component name
         if item == "AAdays":
-          valueint = [ int(x) for x in value ]
-          valueint = sorted(valueint)
-          value = [ str(x) for x in valueint ]
+          valuesInt = [ int(x) for x in values ]
+          valuesInt = sorted(valuesInt)
           # condense the list of AAdays into sequences (0,2,4,8,32 becomes 0-8,32)
           seq = []
           days = [0, 2, 4, 8, 16, 32, 64]
           k = 0
           for low in days:
-            if low in valueint:        #lower limit of sequence
+            if low in valuesInt:        #lower limit of sequence
               seq.insert(k, str(low))
-              valueint.remove(low)
+              valuesInt.remove(low)
               found = False
               for high in days:   
                 if high > low:
-                  if high in valueint: #higher limit of sequence
+                  if high in valuesInt: #higher limit of sequence
                     found = high
-                    valueint.remove(high)
+                    valuesInt.remove(high)
                   else:
                     break
               if found: seq[k] += "-" + str(found)
               k += 1
           # add possible AAdays values other than 0,2,4,8...
-          for x in valueint: seq.append(str(x))
-          sp["AAdays"] = ",".join(seq)
-          name += " " + sp['AAdays'] + "d"
+          for x in valuesInt: seq.append(str(x)) 
+          name += " " + ",".join(seq) + "d"
         elif item == "Color":
-          sp['Color'] = "/".join(value)
-          name += " " + sp['Color']
+          name += " " + "/".join(sorted(values))
+        elif item == "Source":
+          pass
+        elif item == "Sample":
+          pass
         else:
-          sp[item] = "-".join(sorted(value))
-          name += " " + sp[item]
+          name += " " + "-".join(sorted(values))
     
     # add to data
     data['components'][name] = sp
     
     # add a "link" to the group data
     # (used to include sumspectrum if a group library is exported) 
-    data['groups'][g]['component'] = name
-    
-    # report things
-    reportline = ["C" + str(c), g, " ".join(s.split(" ")[0] for s in sp['Spectra']), sp['RI'], samples]
-    report.append(reportline)
-    
+    # commented out, because this data remains present when components are built multiple times --> becomes ambiguous!!
+    #data['groups'][g]['component'] = name
+
     i += 1
     
     # update progress bar
@@ -218,52 +205,6 @@ def main():
       print("  - " + name)
     else:
       gcmstoolbox.printProgress(i, j)
-
-
-  ### MAKE REPORT
-  
-  print("\nGenerating report...")
-  
-  if not options.verbose: 
-    i = 0
-    j = len(report)
-    gcmstoolbox.printProgress(i, j)
-  
-  # compile a list of all measurements
-  allmeas = set()
-  for line in report:
-    allmeas.update(line[4].keys())
-  
-  # write report file
-  with open(outfile, 'w', newline='') as fh:
-    mkreport = csv.writer(fh, dialect='excel')
-    mkreport.writerow(["component", "group", "spectra", "RI"] + sorted(allmeas))
-    
-    # calculate total integrated signals
-    totIS = OrderedDict()
-    for m in sorted(allmeas): totIS[m] = 0
-    for s in data['spectra'].values():
-      if 'Sample' in s:   m = s['Sample']
-      elif 'Source' in s: m = s['Source']
-      else:               m = 'Unknown'
-      if m in allmeas:
-        if 'IS' in s: 
-          totIS[m] += int(s['IS'])
-    mkreport.writerow(["total IS", "", "", ""] + list(totIS.values()))
-    
-    for line in report:
-      samples = line.pop()
-      for m in sorted(allmeas):
-        if m in samples.keys(): line.append(samples[m])
-        else:                   line.append("")
-      mkreport.writerow(line)
-      
-      if not options.verbose: 
-        i += 1
-        j = len(report)
-        gcmstoolbox.printProgress(i, j)
-      
-  print(" => Wrote " + outfile)
 
 
    ### SAVE OUTPUT JSON

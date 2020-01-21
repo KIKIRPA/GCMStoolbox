@@ -17,8 +17,9 @@ doubles = OrderedDict()  #dictionary of groups of possibly the same component
 def main():
   print("\n*******************************************************************************")
   print(  "* GCMStoolbox - a set of tools for GC-MS data analysis                        *")
-  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage (" + gcmstoolbox.date + ") *")
-  print(  "*   Licence: GNU GPL version 3.0                                              *")
+  print(  "*   Version: {} ({})                                             *".format(gcmstoolbox.version, gcmstoolbox.date))
+  print(  "*   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *")
+  print(  "*   Licence: GNU GPL version 3                                                *")
   print(  "*                                                                             *")
   print(  "* GROUP:                                                                      *")
   print(  "*   Search groups in a NIST search of a large dataset against itself          *")
@@ -46,8 +47,8 @@ def main():
   group.add_option("-n", "--reverse",  help="Apply NIST MS reverse match limit [default: 0]", action="store", dest="minrmf", type="int", default=0)
   parser.add_option_group(group)
   
-  group = OptionGroup(parser, "AMBIGUOUS MATCHES", "Sometimes a spectrum is matched against a series of spectra that are allocated to two or more different groups. By default, these groups are merged and all spectra allocated to these groups are reallocated to the merged group.")
-  group.add_option("-N", "--nomerge",  help="Do not merge groups with ambiguous matches", action="store_false", dest="merge", default=True)
+  group = OptionGroup(parser, "AMBIGUOUS MATCHES", "Sometimes a spectrum is matched against a series of spectra that are allocated to two or more different groups. By default, these groups are not merged.")
+  group.add_option("-M", "--merge",  help="Merge groups with ambiguous matches", action="store_true", dest="merge", default=False)
   parser.add_option_group(group)
   
   (options, args) = parser.parse_args()
