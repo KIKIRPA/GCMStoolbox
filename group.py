@@ -48,7 +48,7 @@ def main():
   parser.add_option_group(group)
   
   group = OptionGroup(parser, "AMBIGUOUS MATCHES", "Sometimes a spectrum is matched against a series of spectra that are allocated to two or more different groups. By default, these groups are not merged.")
-  group.add_option("-M", "---merge",  help="Merge groups with ambiguous matches", action="store_true", dest="merge", default=False)
+  group.add_option("-M", "--merge",  help="Merge groups with ambiguous matches", action="store_true", dest="merge", default=False)
   parser.add_option_group(group)
   
   (options, args) = parser.parse_args()
