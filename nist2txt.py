@@ -52,9 +52,9 @@ def main():
   ### READ FILE
   if options.verbose: print("\nProcessing file: " + inFile)
   
-  with open(inFile,'r') as fh:   #file handle closes itself
+  with open(inFile,'r', encoding="latin-1") as fh:   #file handle closes itself
     for line in fh: 
-    
+   
       # FIRST LINE
       if line.casefold().startswith('name'):
         name = line.split(':', 1)[1].strip()
@@ -62,6 +62,7 @@ def main():
         cas = ""
         count = 0
         values = []
+        if options.verbose: print("  Spectrum: " + name)
 
         # OTHER METADATA
         for nextline in fh:
@@ -84,17 +85,21 @@ def main():
 
         # READ SPECTRUM
         for nextline in fh:
-          #values.extend(re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", nextline))
+          values.extend(re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", nextline))
 
-          if len(values) * 2 == count:
+          if len(values) == count * 2 :
+            break
+
+          if len(nextline.strip()) == 0:
+            print ( "WARNING - count " + str(count) + " - values " + str(len(values)))
             break
 
         # WRITE TEXT FILE
         keepcharacters = (' ','.','_')
-        outfn = "".join(c for c in name if c.isalnum() or c in keepcharacters).rstrip()
+        outfn = "".join(c for c in name if c.isalnum() or c in keepcharacters).rstrip() + ".txt"
         with open(outfn, "w") as outfh:
           for x in range(count):
-            outfh.write(value[x*2] + ";" + value[(x*2)+1] + "\n")
+            outfh.write(values.pop(0) + ";" + values.pop(0) + "\n")
 
 
 if __name__ == "__main__":
