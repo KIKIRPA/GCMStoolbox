@@ -174,7 +174,7 @@ def writespectrum(fh, fn, name, sp, verbose = False):
     print("    - Write", name, "in output file")
   
   #start with the Name field (and remove it from the dictionary)
-  if len(name) > 77:
+  if len(name) > 78:
     name = name[:77]
     print("      WARNING: name cropped to ", name)
   fh.write('Name: '   + name + "\n")
