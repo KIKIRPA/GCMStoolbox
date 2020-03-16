@@ -149,6 +149,7 @@ def main():
         spectrum['DB#'] = str(i)
         key = spectrum.pop('Name')
         key = 'S{} {}'.format(i, key)
+        key = key[:77]                    # longer spectrum names cause problems in AMDIS
         data['spectra'][key] = spectrum
 
         # keep track of the previous spectrum in case of ELU models for the same peak

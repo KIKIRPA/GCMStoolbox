@@ -189,6 +189,9 @@ def main():
           pass
         else:
           name += " " + "-".join(sorted(values))
+
+    # crop name (longer names cause problems in Amdis)
+    name = name[:77]
     
     # add to data
     data['components'][name] = sp
