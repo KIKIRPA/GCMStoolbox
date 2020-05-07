@@ -271,7 +271,7 @@ def readspectrum(fh, inFile,norm = 999, elu = False, elinc=False, verbose = Fals
           couples = nextline.split(";")
           for couple in couples:
             couple = couple.split(None)   #None should split on multiple whitespaces
-            xy[int(couple[0].strip())] = int(couple[1].strip())
+            xy[int(couple[0].split('.')[0].strip())] = int(couple[1].split('.')[0].strip())
           
           #countdown numpeaks and prepare to end this function
           numpeaks = numpeaks - len(couples)
