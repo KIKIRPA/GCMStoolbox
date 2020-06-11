@@ -87,7 +87,7 @@ def main():
     print(" => JSON output file: " + options.jsonout + "\n")
     
 
-  ### READ MSPEPSEARCH RESULTS
+  ### GROUP LEVEL 1: GENERATE LIST OF HITS PER UNKNOWN
  
   # init progress bar
   print("\nProcessing file: " + inFile)
@@ -96,12 +96,17 @@ def main():
     j = 0
     gcmstoolbox.printProgress(j, k)
   
-  # open MSPEPSEARCH file, read and interpret it line by line
+  # read MSPEPSEARCH file line by line, and apply grouping criteria
   i = 1
   with open(inFile,'r') as fh:
     for line in fh:
-      for z in range(k):
+      #for z in range(k):
+
         if line.casefold().startswith('unknown'):
+
+          hits = []
+          processed = False
+
           # spectrum name of the unknown
           unknown = line.split(": ", 1)[1] \
                         .split("Compound in Library Factor = ")[0] \
@@ -145,11 +150,17 @@ def main():
               if accept: hits.append(hit)
 
 
+
+
             elif processed == False:
               # process hit list
               if len(hits) > 0:
                 if options.verbose: print(" - Unknown: " + unknown + ((" (RI window: " + str(round(window,2)) + ")") if window > 0 else ""))
-            
+
+
+
+
+
                 foundgroups = []
 
                 for hit in hits:
@@ -189,11 +200,7 @@ def main():
               
               processed = True  #prevent process from being called twice
                 
-            elif line.casefold().startswith('unknown'):
-              return line, i
 
-          line, i = readlist(fh, line, i, options.rifixed, options.rifactor, options.discard, options.minmf, options.minrmf, options.merge, options.verbose)
-          
           # update progress bar 
           if not options.verbose: 
             j += 1
@@ -273,124 +280,6 @@ def main():
 
 
 
-
-
-def readlist(fh, line, i, RIfixed, RIfactor, discard, minMF, minRMF, merge, verbose = False):
-  
-  global data, allocations, doubles
-  
-  hits = []
-  processed = False
-  
-  # spectrum name of the unknown
-  unknown = line.split(": ", 1)[1]
-  unknown = unknown.split("Compound in Library Factor = ")[0]
-  unknown = unknown.strip()
-  
-  # if selection on RI: obtain RI and RIwindow    
-  if (RIfixed != 0) or (RIfactor != 0):
-    u = getRI(unknown)
-    w = RIfixed + (RIfactor * u)
-  else:
-    u = w = 0
-  
-  # read next line(s)
-  for line in fh:
-    if line.casefold().startswith('hit'):
-      # dissect the "hit" line
-      line = line.split(": ", 1)[1]
-      parts = line.split(">>; ")     # the possibility of having semicolons inside the sample name makes this more complex
-      hit = parts[0].replace("<<", "").strip()
-      
-      # extract RI, match and reverse match
-      h = getRI(hit) if (w != 0) else 0
-      hitMF, hitRMF, temp = parts[2].split("; ", 2)
-      hitMF = int(hitMF.replace("MF: ", "").strip())
-      hitRMF = int(hitRMF.replace("RMF: ", "").strip())
-      
-      # RI selection: accept if
-      # - RIwindow is given and both RI's are present: accept hit when RI falls within the window
-      # - # RIwindow is given (without discard option) but at least one of the RI's is missing: accept anyway
-      # - RIwindow is zero (= RI matching is disabled): accept 
-      accept = ( ((w > 0) and (u > 0) and (h > 0) and (u - abs(w / 2) <= h <= u + abs(w / 2)))
-                 or ((w > 0) and (not discard) and ((u == 0) or (h == 0)))
-                 or (w == 0)
-               )
-
-      # Match factor selection
-      if (minMF > 0) and (minMF > hitMF):    accept = False
-      if (minRMF > 0) and (minRMF > hitRMF): accept = False
-        
-      # add to hits (if the hit is accepted)
-      if accept: hits.append(hit)
-        
-    else:
-      if processed == False:
-        # process hit list
-        if len(hits) > 0:
-          if verbose: print(" - Unknown: " + unknown + ((" (RI window: " + str(round(w,2)) + ")") if w > 0 else ""))
-      
-          foundgroups = []
-
-          for hit in hits:
-            if hit in allocations.keys():
-              if verbose: print("   -> hit: " + hit +  " -> G" + str(allocations[hit]))
-              if allocations[hit] not in foundgroups:
-                foundgroups.append(allocations[hit])
-            else:
-              if verbose: print("   -> hit: " + hit +  " -> not allocated yet")
-          
-          if len(foundgroups) == 0:
-            group = i
-            i += 1
-            if verbose: print("   new group [G" + str(group) + "]")
-          elif len(foundgroups) == 1:
-            group = foundgroups[0]
-            if verbose: print("   existing group [G" + str(group) + "]")
-          else: # multiple possible groups !!!
-            # compile a list of sets of duplicates
-            if min(foundgroups) not in doubles:
-              doubles[min(foundgroups)] = set(foundgroups)
-            else:
-              doubles[min(foundgroups)].update(foundgroups)
-
-            #group to attribute the hits to the group to which the unknown is allready attributed
-            #and if the unknown is not yet attributed, or in case of merge: to the lowest group
-            if unknown in allocations:
-              group = allocations[unknown]
-            else:
-              group = min(foundgroups)
-              
-            if verbose: 
-              print("   !! multiple matched groups: " + ', '.join(str(x) for x in foundgroups))
-              if not merge: 
-                print("      non-allocated spectra are now G" +  str(group))
-              else:        
-                print("      all spectra are now allocated to G" +  str(group))
-                print("      and the other groups were merged.")
-            
-            #MERGE: remove the chosen group from the foundgroups 
-            #and search for all spectra that were allocated to these other groups
-            if merge:
-              foundgroups.remove(group)
-              for other in foundgroups:
-                for s, g in allocations.items():
-                  if other == g:
-                    hits.append(s)
-
-          # allocate
-          hits = list(set(hits))  # remove duplicates
-          for hit in hits:
-            if (hit not in allocations) or merge:   # if merge=true :  first level of merging
-              allocations[hit] = group
-        
-        processed = True  #prevent process from being called twice
-        
-      if line.casefold().startswith('unknown'):
-        return line, i
-        
-  # when EOF
-  return "eof", i
 
 
 
