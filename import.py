@@ -149,6 +149,7 @@ def main():
         spectrum['DB#'] = str(i)
         key = spectrum.pop('Name')
         key = 'S{} {}'.format(i, key)
+        key = key[:77]                    # longer spectrum names cause problems in AMDIS
         data['spectra'][key] = spectrum
 
         # keep track of the previous spectrum in case of ELU models for the same peak
@@ -270,7 +271,7 @@ def readspectrum(fh, inFile,norm = 999, elu = False, elinc=False, verbose = Fals
           couples = nextline.split(";")
           for couple in couples:
             couple = couple.split(None)   #None should split on multiple whitespaces
-            xy[int(couple[0].strip())] = int(couple[1].strip())
+            xy[int(couple[0].split('.')[0].strip())] = int(couple[1].split('.')[0].strip())
           
           #countdown numpeaks and prepare to end this function
           numpeaks = numpeaks - len(couples)
