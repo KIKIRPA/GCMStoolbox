@@ -255,8 +255,8 @@ def readlist(fh, line, i, RIfixed, RIfactor, discard, minMF, minRMF, merge, verb
             else:
               doubles[min(foundgroups)].update(foundgroups)
 
-            #group to attribute the hits to the group to which the unknown is allready attributed
-            #and if the unknown is not yet attributed, or in case of merge: to the lowest group
+            # if the unknown has already been allocated to a group, add it's hits to this group
+            # otherwise to the lowest group in found in the hits
             if unknown in allocations:
               group = allocations[unknown]
             else:
