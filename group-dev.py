@@ -3,6 +3,7 @@
 
 import sys
 import os
+import pprint
 from collections import OrderedDict
 from optparse import OptionParser, OptionGroup
 import gcmstoolbox
@@ -32,7 +33,8 @@ def main():
   usage = "usage: %prog [options] MSPEPSEARCH_FILE"
   
   parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
-  parser.add_option("-v", "--verbose", help="Be very verbose",  action="store_true", dest="verbose", default=False)
+  parser.add_option("-v", "--verbose", help="Be verbose",  action="store_true", dest="verbose", default=False)
+  parser.add_option("-w", "--veryverbose", help="Be insanely verbose",  action="store_true", dest="veryverbose", default=False)
   parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
   parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   
@@ -47,8 +49,8 @@ def main():
   group.add_option("-n", "--reverse",  help="Apply NIST MS reverse match limit [default: 0]", action="store", dest="minrmf", type="int", default=0)
   parser.add_option_group(group)
   
-  group = OptionGroup(parser, "AMBIGUOUS MATCHES", "Sometimes a spectrum is matched against a series of spectra that are allocated to two or more different groups. By default, these groups are not merged.")
-  group.add_option("-M", "--merge",  help="Merge groups with ambiguous matches", action="store_true", dest="merge", default=False)
+  #group = OptionGroup(parser, "AMBIGUOUS MATCHES", "Sometimes a spectrum is matched against a series of spectra that are allocated to two or more different groups. By default, these groups are not merged.")
+  #group.add_option("-M", "--merge",  help="Merge groups with ambiguous matches", action="store_true", dest="merge", default=False)
   parser.add_option_group(group)
   
   (options, args) = parser.parse_args()
@@ -85,191 +87,93 @@ def main():
   if options.verbose:
     print(" => JSON input file:  " + options.jsonin)
     print(" => JSON output file: " + options.jsonout + "\n")
-    
+
+
 
   ### GROUP LEVEL 1: GENERATE LIST OF HITS PER UNKNOWN
  
   # init progress bar
-  print("\nProcessing file: " + inFile)
+  print("\nGrouping level 1: processing " + inFile)
+  j = 0
   k = len(data['spectra'])
-  if not options.verbose:
-    j = 0
+  if not (options.verbose or options.veryverbose) :
     gcmstoolbox.printProgress(j, k)
   
   # read MSPEPSEARCH file line by line, and apply grouping criteria
-  i = 1
+  hits = []
+  grouping1 = OrderedDict()
   with open(inFile,'r') as fh:
     for line in fh:
-      #for z in range(k):
 
-        if line.casefold().startswith('unknown'):
+      if line.casefold().startswith('unknown'):
+        # PROCESS PREVIOUS
+        if len(hits) > 0:
+          grouping1[unknown] = hits
 
-          hits = []
-          processed = False
+          # report stuff
 
-          # spectrum name of the unknown
-          unknown = line.split(": ", 1)[1] \
-                        .split("Compound in Library Factor = ")[0] \
-                        .strip()
-
-          # if selection on RI: obtain RI and RIwindow    
-          if (options.rifixed != 0) or (options.rifactor != 0):
-            unknownRI = getRI(unknown)
-            window = abs((options.rifixed + (options.rifactor * unknownRI)) / 2)  # HALF window
-          else:
-            unknownRI = window = 0
-
-          # read next line(s)
-          for line in fh:
-            if line.casefold().startswith('hit'):
-              # dissect the "hit" line
-              line = line.split(": ", 1)[1]
-              parts = line.split(">>; ")     # the possibility of having semicolons inside the sample name makes this more complex
-              hit = parts[0].replace("<<", "").strip()
-              
-              # extract RI, match and reverse match
-              hitRI = getRI(hit) if (window != 0) else 0
-              hitMF, hitRMF, temp = parts[2].split("; ", 2)
-              hitMF = int(hitMF.replace("MF: ", "").strip())
-              hitRMF = int(hitRMF.replace("RMF: ", "").strip())
-              
-              # RI selection: accept if
-              # - RIwindow is given and both RI's are present: accept hit when RI falls within the window
-              # - RIwindow is given (without discard option) but at least one of the RI's is missing: accept anyway
-              # - RIwindow is zero (= RI matching is disabled): accept 
-              accept = ( ((window > 0) and (unknownRI > 0) and (hitRI > 0) and (unknownRI - window <= hitRI <= unknownRI + window))
-                         or ((window > 0) and (not options.discard) and ((unknownRI == 0) or (hitRI == 0)))
-                         or (window == 0)
-                       )
-
-              # Match factor selection
-              if (options.minmf > 0) and (options.minmf > hitMF):    accept = False
-              if (options.minrmf > 0) and (options.minrmf > hitRMF): accept = False
-                
-              # add to hits (if the hit is accepted)
-              if accept: hits.append(hit)
-
-
-
-
-            elif processed == False:
-              # process hit list
-              if len(hits) > 0:
-                if options.verbose: print(" - Unknown: " + unknown + ((" (RI window: " + str(round(window,2)) + ")") if window > 0 else ""))
-
-
-
-
-
-                foundgroups = []
-
-                for hit in hits:
-                  if hit in allocations.keys():
-                    if options.verbose: print("   -> hit: " + hit +  " -> G" + str(allocations[hit]))
-                    if allocations[hit] not in foundgroups:
-                      foundgroups.append(allocations[hit])
-                  else:
-                    if options.verbose: print("   -> hit: " + hit +  " -> not allocated yet")
-                
-                if len(foundgroups) == 0:
-                  group = i
-                  i += 1
-                  if options.verbose: print("   new group [G" + str(group) + "]")
-                elif len(foundgroups) == 1:
-                  group = foundgroups[0]
-                  if options.verbose: print("   existing group [G" + str(group) + "]")
-                else: # multiple possible groups !!!
-                  # compile a list of sets of duplicates
-                  if min(foundgroups) not in doubles:
-                    doubles[min(foundgroups)] = set(foundgroups)
-                  else:
-                    doubles[min(foundgroups)].update(foundgroups)
-
-                  #group to attribute the hits to the group to which the unknown is allready attributed
-                  #and if the unknown is not yet attributed, or in case of merge: to the lowest group
-                  if unknown in allocations:
-                    group = allocations[unknown]
-                  else:
-                    group = min(foundgroups)    
-
-                # allocate
-                hits = list(set(hits))  # remove duplicates
-                for hit in hits:
-                  if (hit not in allocations) or merge:   # if merge=true :  first level of merging
-                    allocations[hit] = group
-              
-              processed = True  #prevent process from being called twice
-                
-
-          # update progress bar 
-          if not options.verbose: 
-            j += 1
+          if options.veryverbose:
+            print(' - "{}": {} retained hits, {} rejected hits:'.format(unknown, len(hits), i-len(hits)))
+            print('   [RI window: {} <= RI <= {}]'.format(unknownRI - window, unknownRI + window))
+            pp = pprint.PrettyPrinter(indent=4)
+            pp.pprint(hits)
+          elif options.verbose:
+            print(' - "{}": {} retained hits, {} rejected hits'.format(unknown.split()[1], len(hits), i-len(hits)))
+          else: 
             gcmstoolbox.printProgress(j, k)
-          
-          if line == "eof": break
 
-
-
-
-
-  ### BUILD GROUPS
-  
-  print("\nGrouping spectra ...")
-  data['groups'] = OrderedDict()
-
-  # init progress bar
-  if not options.verbose: 
-    j = 0
-    k = len(data['spectra'])
-    gcmstoolbox.printProgress(j, k)
-  
-
-  for s, g in allocations.items():
-    g = "G" + str(g)
-    buildgroups(data['groups'], g, s)
-    
-    # adjust progress bar
-    if not options.verbose: 
-      j += 1
-      gcmstoolbox.printProgress(j, k) 
-    
-  del allocations
+        # START NEW
+        i = 0
+        j += 1
+        hits = []
+        unknown = line.split(": ", 1)[1] \
+                      .split("Compound in Library Factor = ")[0] \
+                      .strip() # spectrum name of the unknown
         
+        # if selection on RI: obtain RI and RIwindow    
+        if (options.rifixed != 0) or (options.rifactor != 0):
+          unknownRI = getRI(unknown)
+          window = abs((options.rifixed + (options.rifactor * unknownRI)) / 2)  # HALF window
+        else:
+          unknownRI = window = 0
 
-  ### STATS
-  
-  stats = OrderedDict()
-  stats["spectra"] = len(data['spectra'])
-  stats["groups"]  = len(data['groups'])
-  if options.merge: stats["merged"]    = [sorted(d) for d in doubles.values()]
-  else:             stats["ambiguous"] = [sorted(d) for d in doubles.values()]
-  stats["stats"] = groupstats(data['groups'])
-  
-  print("\nSTATISTICS")
-  print("  - Number of mass spectra: " + str(stats["spectra"]))
-  print("  - Number of groups:       " + str(stats["groups"]))
-  if not options.merge:
-    print("  - Groups that may be the same component:")
-    for key in sorted(doubles.keys()):
-      print("      - " + ", ".join(str(d) for d in sorted(doubles[key])))
-  print("  - Number of hits per group:")
-  
-  if options.verbose:
-    lines = groupstats(data['groups'], options.verbose)
-  else:
-    lines = stats["stats"]
-  for l in lines:
-    print("      - " + l)
-  
+      elif line.casefold().startswith('hit'):
+        i += 1
 
-  ### UPDATE JSON FILE
+        # dissect the "hit" line
+        line = line.split(": ", 1)[1]
+        parts = line.split(">>; ")     # the possibility of having semicolons inside the sample name makes this more complex
+        hit = parts[0].replace("<<", "").strip()
+        
+        # extract RI, match and reverse match
+        hitRI = getRI(hit) if (window != 0) else 0
+        hitMF, hitRMF, temp = parts[2].split("; ", 2)
+        hitMF = int(hitMF.replace("MF: ", "").strip())
+        hitRMF = int(hitRMF.replace("RMF: ", "").strip())
+        
+        # RI selection: accept if
+        # - RIwindow is given and both RI's are present: accept hit when RI falls within the window
+        # - RIwindow is given (without discard option) but at least one of the RI's is missing: accept anyway
+        # - RIwindow is zero (= RI matching is disabled): accept 
+        accept = ( ((window > 0) and (unknownRI > 0) and (hitRI > 0) and (unknownRI - window <= hitRI <= unknownRI + window))
+                    or ((window > 0) and (not options.discard) and ((unknownRI == 0) or (hitRI == 0)))
+                    or (window == 0)
+                  )
+
+        # Match factor selection
+        if (options.minmf > 0) and (options.minmf > hitMF):    accept = False
+        if (options.minrmf > 0) and (options.minrmf > hitRMF): accept = False
+          
+        # add to hits (if the hit is accepted)
+        if accept: hits.append(hit)
+ 
+      #elif line == "eof": break
+
+
+
+
+
   
-  if options.verbose: print("\nUpdate JSON output file: " + options.jsonout + "\n")
-  data["info"]["mode"] = "group"
-  data["info"]["grouping"] = stats
-  data["info"]["cmds"].append(cmd)
-  gcmstoolbox.saveJSON(data, options.jsonout)     # backup and safe json
-  print("\nFinalised. Wrote " + options.jsonout + "\n")
   
   exit()
 
@@ -299,75 +203,6 @@ def getRI(name):
     print("\n!! FATAL ERROR: spectrum " + name + " was not found in the GCMStoolbox JSON data file.\n")
 
 
-
-
-def buildgroups(groups, g, s):
-  ri = getRI(s)
-  
-  if g not in groups:
-    # initialise the group
-    groups[g] = OrderedDict([("spectra", [s]), ("count", 1), ("minRI", ri), ("maxRI", ri), ("deltaRI", 0)])
-  
-  else:
-    # add spectrum to the group
-    groups[g]["spectra"].append(s)
-    groups[g]["count"] += 1
-    
-    if ri != 0:
-      if (groups[g]["minRI"] == 0) or (groups[g]["minRI"] > ri):
-        groups[g]["minRI"] = ri
-      if (groups[g]["maxRI"] == 0) or (groups[g]["maxRI"] < ri):
-        groups[g]["maxRI"] = ri
-      groups[g]["deltaRI"] = round(groups[g]["maxRI"] - groups[g]["minRI"], 2)
-
-
-
-def groupstats(groups, verbose = False):
-  
-  # make stats
-  stats = {}
-  for n, group in groups.items():
-    if group["count"] in stats:
-      stats[group["count"]] += 1
-    else:
-      stats[group["count"]] = 1
-  
-  # write stats
-  lines = []
-  if verbose:
-    for n in range(1, len(stats.keys())):
-      if   n < 10 : spacer = "  "
-      elif n < 100: spacer = " "
-      else:         spacer = ""
-      if n in stats:
-        lines.append("[" + spacer + str(n) + "] " + str(stats[n]))
-  else:
-    if 1 in stats: lines.append("[      1] " + str(stats[1]))
-    if 2 in stats: lines.append("[      2] " + str(stats[2]))
-    if 3 in stats: lines.append("[      3] " + str(stats[3]))
-    lines.append("[ 4 -  9] " + str(countStats(stats, 4, 9)))
-    lines.append("[10 - 19] " + str(countStats(stats, 10, 19)))
-    lines.append("[20 - 39] " + str(countStats(stats, 20, 39)))
-    lines.append("[40 - 59] " + str(countStats(stats, 40, 59)))
-    lines.append("[60 - 79] " + str(countStats(stats, 40, 79)))
-    lines.append("[80 - 99] " + str(countStats(stats, 80, 99)))
-    lines.append("[ >= 100] " + str(countStats(stats, 100)))
-    
-  return lines
-    
-
-
-
-def countStats(stats, minimum, maximum = False):
-  count = 0
-  
-  if maximum == False:
-    maximum = max(stats.keys(), key=int)
-    
-  for n in range (minimum, maximum):
-    if n in stats: count += stats[n]
-    
-  return count
 
 
 
