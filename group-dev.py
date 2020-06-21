@@ -90,10 +90,10 @@ def main():
 
 
 
-  ### GROUP LEVEL 1: GENERATE LIST OF HITS PER UNKNOWN
+  ### GROUP STAGE 1: GENERATE LIST OF HITS PER UNKNOWN
  
   # init progress bar
-  print("\nGrouping level 1: processing " + inFile)
+  print("\nGrouping stage 1: processing " + inFile)
   j = 0
   k = len(data['spectra'])
   if not (options.verbose or options.veryverbose) :
@@ -167,8 +167,10 @@ def main():
         # add to hits (if the hit is accepted)
         if accept: hits.append(hit)
  
-      #elif line == "eof": break
 
+  ### GROUP STAGE 2: GENERATE LIST OF HITS PER UNKNOWN
+
+  if options.algorithm == "test":
 
 
 
