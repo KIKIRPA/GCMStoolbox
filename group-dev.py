@@ -333,14 +333,14 @@ def groupstats(groups, verbose = False):
     stats[0] += count
 
     # count in category
-    if    1 <= count <=  3: stats[count] += count
-    elif  4 <= count <=  9: stats[4] += count
-    elif 10 <= count <= 19: stats[5] += count
-    elif 20 <= count <= 39: stats[6] += count
-    elif 40 <= count <= 59: stats[7] += count
-    elif 60 <= count <= 79: stats[8] += count
-    elif 80 <= count <= 99: stats[9] += count
-    elif count >= 100:      stats[10] += count
+    if    1 <= count <=  3: stats[count] += 1
+    elif  4 <= count <=  9: stats[4] += 1
+    elif 10 <= count <= 19: stats[5] += 1
+    elif 20 <= count <= 39: stats[6] += 1
+    elif 40 <= count <= 59: stats[7] += 1
+    elif 60 <= count <= 79: stats[8] += 1
+    elif 80 <= count <= 99: stats[9] += 1
+    elif count >= 100:      stats[10] += 1
     
   return stats
 
