@@ -43,8 +43,8 @@ def main():
   group.add_option("-n", "--reverse",  help="Apply NIST MS reverse match limit [default: 0]", action="store", dest="minrmf", type="int", default=0)
   parser.add_option_group(group)
   
-  group = OptionGroup(parser, "PHASE 2 GROUPING ALGORITHM", "Choose the grouping algorithm and parameters.")
-  group.add_option("-a", "--algorithm",  help="Grouping algorithm [default: group1]", action="store", type="string", dest="algorithm", default="group1")
+  group = OptionGroup(parser, "STAGE 2 GROUPING ALGORITHM", "Choose the grouping algorithm and parameters.")
+  group.add_option("-a", "--algorithm",  help="Grouping algorithm, use 'none' to disable stage 2 grouping  [default: group1]", action="store", type="string", dest="algorithm", default="group1")
   parser.add_option_group(group)
   
   (options, args) = parser.parse_args()
@@ -90,6 +90,8 @@ def main():
   if not (options.verbose or options.veryverbose) :
     gcmstoolbox.printProgress(j, k)
   
+  stage = 1
+
   # read MSPEPSEARCH file line by line, and apply grouping criteria
   hits = []
   hitRIs = []
@@ -101,10 +103,10 @@ def main():
         # PROCESS PREVIOUS
         if len(hits) > 0:
           stage1[unknown] = OrderedDict()
-          stage1[unknown]['hits'] = hits
-          stage1[unknown]['meanRI'] = mean(hitRIs)
-          stage1[unknown]['minRI'] = min(hitRIs)
-          stage1[unknown]['maxRI'] = max(hitRIs)
+          stage1[unknown]['spectra'] = hits
+          stage1[unknown]['meanRI'] = round(mean(hitRIs), 1)
+          stage1[unknown]['minRI'] = round(min(hitRIs), 1)
+          stage1[unknown]['maxRI'] = round(max(hitRIs), 1)
 
           # report stuff
           if options.veryverbose:
@@ -154,10 +156,11 @@ def main():
         # - RIwindow is given and both RI's are present: accept hit when RI falls within the window
         # - RIwindow is given (without discard option) but at least one of the RI's is missing: accept anyway
         # - RIwindow is zero (= RI matching is disabled): accept 
-        accept = ( ((window > 0) and (unknownRI > 0) and (hitRI > 0) and (unknownRI - window <= hitRI <= unknownRI + window))
-                    or ((window > 0) and (not options.discard) and ((unknownRI == 0) or (hitRI == 0)))
-                    or (window == 0)
-                  )
+        accept = ( 
+          ((window > 0) and (unknownRI > 0) and (hitRI > 0) and (unknownRI - window <= hitRI <= unknownRI + window))
+          or ((window > 0) and (not options.discard) and ((unknownRI == 0) or (hitRI == 0)))
+          or (window == 0)
+        )
 
         # Match factor selection
         if (options.minmf > 0) and (options.minmf > hitMF):    accept = False
@@ -172,6 +175,7 @@ def main():
   ### GROUP STAGE 2: MERGE SIMILAR GROUPS
 
   if options.algorithm == "group1":
+    stage = 2
 
     # init progress bar
     print("\n\nGrouping stage 2: Merge similar hitlists")
@@ -207,7 +211,7 @@ def main():
       grouped = set()
 
       # loop over hits for this unknown
-      for hit in stage1[unknown]['hits']:
+      for hit in stage1[unknown]['spectra']:
         # skip self-hit
         if unknown == hit:
           continue
@@ -221,7 +225,8 @@ def main():
           hitRI = stage1[hit]['meanRI']
 
         # check if the meanRI of the hit's group fits with this meanRI
-        accept = ( ((window > 0) and (meanRI > 0) and (hitRI > 0) and (meanRI - window <= hitRI <= meanRI + window))
+        accept = ( 
+          ((window > 0) and (meanRI > 0) and (hitRI > 0) and (meanRI - window <= hitRI <= meanRI + window))
           or ((window > 0) and (not options.discard) and ((meanRI == 0) or (hitRI == 0)))
           or (window == 0)
         )
@@ -235,7 +240,7 @@ def main():
         # create new group
         group = "G" + str(len(stage2) + 1)
         stage2[group] = OrderedDict()
-        stage2[group]['hits'] = set()
+        stage2[group]['spectra'] = set()
         if options.veryverbose or options.verbose:
           print(' - "{}": is attributed to {} (new group)'.format(unknown.split()[0], group))
       elif len(grouped) == 1:
@@ -253,44 +258,77 @@ def main():
 
       # merge results in stage2 dataset (hits from unknown + hits from retained hits)
       # and remove from stage1 dataset
-      stage2[group]['hits'].update(stage1[unknown]['hits'])
+      stage2[group]['spectra'].update(stage1[unknown]['spectra'])
       for hit in ungrouped:
-        n = len(stage1[hit]['hits'])
-        stage2[group]['hits'].update(stage1[hit]['hits'])
-        del stage1[hit]['hits'], stage1[hit]['meanRI'], stage1[hit]['minRI'], stage1[hit]['maxRI']
+        n = len(stage1[hit]['spectra'])
+        stage2[group]['spectra'].update(stage1[hit]['spectra'])
+        del stage1[hit]['spectra'], stage1[hit]['meanRI'], stage1[hit]['minRI'], stage1[hit]['maxRI']
         stage1[hit]['group'] = group
         if options.veryverbose:
           print('   - adding hitlist from {} ({} spectra)'.format(hit.split()[0], str(n)))
       
       # (re)calculate mean, min and max RI values for the group
       groupRIs = []
-      for hit in stage2[group]['hits']:
+      for hit in stage2[group]['spectra']:
         groupRIs.append(getRI(hit, data['spectra']))
-      stage2[group]['meanRI'] = mean(groupRIs)
-      stage2[group]['minRI'] = min(groupRIs)
-      stage2[group]['maxRI'] = max(groupRIs)
+      stage2[group]['meanRI'] = round(mean(groupRIs), 1)
+      stage2[group]['minRI'] = round(min(groupRIs), 1)
+      stage2[group]['maxRI'] = round(max(groupRIs), 1)
       if options.veryverbose:
         print('   - new mean group RI {} (min: {} ; max: {})'.format(
-          round(stage2[group]['meanRI'], 1),
-          round(stage2[group]['minRI'], 1),
-          round(stage2[group]['maxRI'], 1)
+          stage2[group]['meanRI'],
+          stage2[group]['minRI'],
+          stage2[group]['maxRI']
         ))
       
       # report stuff when not verbose
       if not options.veryverbose and not options.verbose:
         gcmstoolbox.printProgress(j, k)
 
+  elif options.algorithm == "none":
+    # copy stage1 into stage2, renaming the group names
+    print("\n\nGrouping stage 2: skipping")
+    stage2 = stage1
+    groups = list(stage1.keys())
+    i = 0
+    for g in groups:
+      i += 1
+      stage2["G" + str(i)] = stage2.pop(g)
 
-### STATISTICS
+  else:
+    print("\n\nERROR: unknown stage 2 algorithm\n")
+    exit()
+
+
+  
+  ### UPDATE JSON FILE
+  
+  if options.verbose or options.veryverbose: print("\nUpdate JSON output file: " + options.jsonout + "\n")
   
   stats = groupstats(stage2)
+
+  data["info"]["mode"] = "group"
+  data["info"]["grouping"] = stats
+  data["info"]["cmds"].append(cmd)
+  data["groups"] = stage2
+
+  for g in data["groups"]:
+    data["groups"][g]["spectra"] = list(data["groups"][g]["spectra"])
+
+  gcmstoolbox.saveJSON(data, options.jsonout)     # backup and save json
+  print("\nFinalised. Wrote " + options.jsonout + "\n")
+
+
+
+  ### STATISTICS
   
   print("\nSTATISTICS")
   print("  - Number of mass spectra:       " + str(len(data['spectra'])))
   print("  - Number of hitlists (stage 1): " + str(len(stage1)))
 
-  print("  - Number of groups (stage 2):   " + str(len(stage2)))
-  print("  - Number of merge conflicts:    " + str(conflicts))
+  if stage == 2:
+    print("  - Number of groups (stage 2):   " + str(len(stage2)))
+    print("  - Number of merge conflicts:    " + str(conflicts))
 
   print("  - Total number of attributions: " + str(stats[0]))
 
@@ -327,7 +365,7 @@ def groupstats(groups, verbose = False):
   stats = [0] * 11  # a list of 11 zero's
 
   for n, group in groups.items():
-    count = len(group['hits'])
+    count = len(group['spectra'])
     
     # count all
     stats[0] += count
