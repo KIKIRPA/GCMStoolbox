@@ -43,8 +43,9 @@ def main():
   group.add_option("-n", "--reverse",  help="Apply NIST MS reverse match limit [default: 0]", action="store", dest="minrmf", type="int", default=0)
   parser.add_option_group(group)
   
-  group = OptionGroup(parser, "STAGE 2 GROUPING ALGORITHM", "Choose the grouping algorithm and parameters.")
-  group.add_option("-a", "--algorithm",  help="Grouping algorithm, use 'none' to disable stage 2 grouping  [default: group1]", action="store", type="string", dest="algorithm", default="group1")
+  group = OptionGroup(parser, "STAGE 2 AND 3 GROUPING ALGORITHMS", "Choose the grouping algorithm and parameters.")
+  group.add_option("-2", "--stage2",  help="Grouping algorithm, use 'none' to disable stage 2 grouping [default: group1]", action="store", type="string", dest="stage2", default="group1")
+  group.add_option("-3", "--stage3",  help="Grouping algorithm, use 'none' to disable stage 3 grouping [default: group1]", action="store", type="string", dest="stage3", default="group1")
   parser.add_option_group(group)
   
   (options, args) = parser.parse_args()
@@ -174,7 +175,7 @@ def main():
 
   ### GROUP STAGE 2: MERGE SIMILAR GROUPS
 
-  if options.algorithm == "group1":
+  if options.stage2 == "group1":
     stage = 2
 
     # init progress bar
@@ -187,7 +188,8 @@ def main():
 
     # loop over unkowns
     stage2 = OrderedDict()
-    conflicts = 0
+    conflicts = []
+
     for unknown in stage1:
       j += 1
 
@@ -250,7 +252,7 @@ def main():
           print(' - "{}": is attributed to {} (existing group)'.format(unknown.split()[0], group))
       else:
         # CONFLICT: multiple possible groups to merge with
-        conflicts += 1
+        conflicts.append(grouped)
         group = min(grouped) #take the lowest (arbitrary!!!)
         if options.veryverbose or options.verbose:
           print(' - "{}": is attributed to {} (existing group)'.format(unknown.split()[0], group))
@@ -285,7 +287,7 @@ def main():
       if not options.veryverbose and not options.verbose:
         gcmstoolbox.printProgress(j, k)
 
-  elif options.algorithm == "none":
+  elif options.stage2 == "none":
     # copy stage1 into stage2, renaming the group names
     print("\n\nGrouping stage 2: skipping")
     stage2 = stage1
@@ -298,6 +300,62 @@ def main():
   else:
     print("\n\nERROR: unknown stage 2 algorithm\n")
     exit()
+
+
+
+  ### GROUP STAGE 3: HANDLE MERGE CONFLICTS
+
+  if options.stage3 == "group1":
+    stage = 3
+
+    print("\n\nGrouping stage 3: Handle merge conflicts")
+    print("Algorithm 'group1': groups-based merging if mean RI's are similar")
+
+    # step 1: collecting sets of conflicting groups
+
+    print(" - Collecting sets of conflicting groups")
+    j = 0
+    k = len(conflicts)
+    gcmstoolbox.printProgress(j, k)
+
+    sets = []
+
+    for conflict in conflicts:
+      # check if any group in a conflict-set is already in sets
+      newSet = True
+      for g in conflict:
+        for i in range(len(sets)):
+          if g in sets[i]:
+            sets[i].update(conflict)
+            newSet = False
+            break
+        else:
+          continue  # only executed if the inner loop did NOT break
+        break  # only executed if the inner loop DID break
+
+      if (newSet === True):
+        sets.append(conflict)
+
+      j += 1
+      gcmstoolbox.printProgress(j, k)
+
+    # step 2: attempting to merge groups
+    
+    print(" - Attempting to merge groups")
+
+
+    #DEBUG
+    gcmstoolbox.saveJSON(sets, "debug.json")
+
+
+  elif options.stage3 == "none":
+    print("\n\nGrouping stage 3: skipping")
+
+  else:
+    print("\n\nERROR: unknown stage 3 algorithm\n")
+    exit()
+
+
 
 
   
@@ -328,7 +386,10 @@ def main():
 
   if stage == 2:
     print("  - Number of groups (stage 2):   " + str(len(stage2)))
-    print("  - Number of merge conflicts:    " + str(conflicts))
+    print("  - Number of merge conflicts:    " + str(len(conflicts)))
+
+  if stage == 3:
+    print("  - Number of conflict sets:      " + str(len(sets)))
 
   print("  - Total number of attributions: " + str(stats[0]))
 
