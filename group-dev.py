@@ -27,8 +27,9 @@ def main():
   usage = "usage: %prog [options] MSPEPSEARCH_FILE"
   
   parser = OptionParser(usage, version="GCMStoolbox version " + gcmstoolbox.version + " (" + gcmstoolbox.date + ")\n")
-  parser.add_option("-v", "--verbose", help="Be verbose",  action="store_true", dest="verbose", default=False)
-  parser.add_option("-w", "--veryverbose", help="Be insanely verbose",  action="store_true", dest="veryverbose", default=False)
+  parser.add_option("-v", "--verbose", help="Be verbose", action="store_true", dest="verbose", default=False)
+  parser.add_option("-w", "--veryverbose", help="Be insanely verbose", action="store_true", dest="veryverbose", default=False)
+  parser.add_option("-C", "--conflictfiles", help="Create debug files of conflicting groups at each grouping stage", action="store_true", dest="conflictfiles", default=False)
   parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
   parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   
@@ -170,7 +171,6 @@ def main():
 
   # init progress bar
   print("\n\nGrouping stage 2: Merge similar hitlists")
-  print("Algorithm 'group1': groups-based merging if mean RI's are similar")
   j = 0
   k = len(stage1)
   if not (options.verbose or options.veryverbose) :
@@ -200,7 +200,7 @@ def main():
 
     # things to merge
     ungrouped = set()
-    grouped = set()
+    groupIds = set()
 
     # loop over hits for this unknown
     for hit in stage1[unknown]['spectra']:
@@ -210,10 +210,10 @@ def main():
 
       # what to do if the hit's group has already been merged with another group??
       if 'group' in stage1[hit]:
-        group = stage1[hit]['group']
-        hitRI = stage2[group]['meanRI']
+        groupId = stage1[hit]['group']
+        hitRI = stage2[groupId]['meanRI']
       else:
-        group = False
+        groupId = False
         hitRI = stage1[hit]['meanRI']
 
       # check if the meanRI of the hit's group fits with this meanRI
@@ -224,53 +224,62 @@ def main():
       )
 
       if accept:
-        if group: grouped.add(group)
+        if groupId: groupIds.add(group)
         else:     ungrouped.add(hit)
 
     # use new or existing stage2 group
-    if len(grouped) == 0:
+    if len(groupIds) == 0:
       # create new group
-      group = "G" + str(len(stage2) + 1)
-      stage2[group] = OrderedDict()
-      stage2[group]['spectra'] = set()
+      groupId = "G" + str(len(stage2) + 1)
+      stage2[groupId] = OrderedDict()
+      stage2[groupId]['spectra'] = []
       if options.veryverbose or options.verbose:
-        print(' - "{}": is attributed to {} (new group)'.format(unknown.split()[0], group))
-    elif len(grouped) == 1:
-      # add to existing group
-      group = list(grouped)[0]
+        print(' - "{}": is attributed to {} (new group)'.format(unknown.split()[0], groupId))
+    elif len(groupIds) == 1:
+      # use existing group
+      groupId = list(groupIds)[0]
       if options.veryverbose or options.verbose:
-        print(' - "{}": is attributed to {} (existing group)'.format(unknown.split()[0], group))
+        print(' - "{}": is attributed to {} (existing group)'.format(unknown.split()[0], groupId))
     else:
       # CONFLICT: multiple possible groups to merge with
-      conflicts.append(grouped)
-      group = min(grouped) #take the lowest (arbitrary!!!)
+      conflicts.append(groupIds)
+      groupId = min(groupIds) #take the lowest (arbitrary!!!)
       if options.veryverbose or options.verbose:
-        print(' - "{}": is attributed to {} (existing group)'.format(unknown.split()[0], group))
-        print('   WARNING: GROUPING CONFLICT - multiple matching groups: {}'.format(", ".join(grouped)))
+        print(' - "{}": is attributed to {} (existing group)'.format(unknown.split()[0], groupId))
+        print('   WARNING: GROUPING CONFLICT - multiple matching groups: {}'.format(", ".join(groupIds)))
 
     # merge results in stage2 dataset (hits from unknown + hits from retained hits)
-    # and remove from stage1 dataset
-    stage2[group]['spectra'].update(stage1[unknown]['spectra'])
-    for hit in ungrouped:
-      n = len(stage1[hit]['spectra'])
-      stage2[group]['spectra'].update(stage1[hit]['spectra'])
-      del stage1[hit]['spectra'], stage1[hit]['meanRI'], stage1[hit]['minRI'], stage1[hit]['maxRI']
-      stage1[hit]['group'] = group
-      if options.veryverbose:
-        print('   - adding hitlist from {} ({} spectra)'.format(hit.split()[0], str(n)))
-    
+    # 1. spectra already in stage2[groupId]
+    spectra = set(stage2[groupId]['spectra'])
+    # 2. spectra from stage1[unknown]
+    spectra.update(stage1[unknown]['spectra'])
+    stage1[unknown]['group'] = groupId
+    del stage1[unknown]['spectra'], stage1[unknown]['meanRI'], stage1[unknown]['minRI'], stage1[unknown]['maxRI']
+    # 3. spectra from stage1 hits that are yet ungrouped: only if no conflicts
+    #    (in case of conflicts, wait until this is hit is treated as unknown)
+    if len(groupIds) <= 1:
+      for hit in ungrouped:
+        n = len(stage1[hit]['spectra'])
+        spectra.update(stage1[hit]['spectra'])
+        del stage1[hit]['spectra'], stage1[hit]['meanRI'], stage1[hit]['minRI'], stage1[hit]['maxRI']
+        stage1[hit]['group'] = groupId
+        if options.veryverbose:
+          print('   - adding hitlist from {} ({} spectra)'.format(hit.split()[0], str(n)))
+    # 4. store updated spectra list in stage2 group
+    stage2[groupId]['spectra'] = list(spectra)
+
     # (re)calculate mean, min and max RI values for the group
     groupRIs = []
-    for hit in stage2[group]['spectra']:
+    for hit in stage2[groupId]['spectra']:
       groupRIs.append(getRI(hit, data['spectra']))
-    stage2[group]['meanRI'] = round(mean(groupRIs), 1)
-    stage2[group]['minRI'] = round(min(groupRIs), 1)
-    stage2[group]['maxRI'] = round(max(groupRIs), 1)
+    stage2[groupId]['meanRI'] = round(mean(groupRIs), 1)
+    stage2[groupId]['minRI'] = round(min(groupRIs), 1)
+    stage2[groupId]['maxRI'] = round(max(groupRIs), 1)
     if options.veryverbose:
       print('   - new mean group RI {} (min: {} ; max: {})'.format(
-        stage2[group]['meanRI'],
-        stage2[group]['minRI'],
-        stage2[group]['maxRI']
+        stage2[groupId]['meanRI'],
+        stage2[groupId]['minRI'],
+        stage2[groupId]['maxRI']
       ))
     
     # report stuff when not verbose
@@ -290,34 +299,42 @@ def main():
   k = len(conflicts)
   gcmstoolbox.printProgress(j, k)
 
-  sets = []
+  conflictSets = []
 
   for conflict in conflicts:
     # check if any group in a conflict-set is already in sets
     newSet = True
     for g in conflict:
-      for i in range(len(sets)):
-        if g in sets[i]:
-          sets[i].update(conflict)
+      for i in range(len(conflictSets)):
+        if g in conflictSets[i]:
+          conflictSets[i].update(conflict)
           newSet = False
           break
       else:
         continue  # only executed if the inner loop did NOT break
       break  # only executed if the inner loop DID break
 
-    if (newSet === True):
-      sets.append(conflict)
+    if (newSet == True):
+      conflictSets.append(conflict)
 
     j += 1
     gcmstoolbox.printProgress(j, k)
+
+  if options.conflictfiles:
+    conflictLists = []
+    for s in conflictSets:
+      conflictLists.append(list(s))
+    gcmstoolbox.saveJSON(conflictLists, "conflicting_groups_stage2.json")
 
   # step 2: attempting to merge groups
   
   print(" - Attempting to merge groups")
 
+  gcmstoolbox.saveJSON(stage1, "stage1.json")
+  gcmstoolbox.saveJSON(stage2, "stage2.json")
 
-  #DEBUG
-  gcmstoolbox.saveJSON(sets, "debug.json")
+  #for s in conflictSets[i]:
+
 
 
 
@@ -352,7 +369,7 @@ def main():
   print("  - Number of groups (stage 2):   " + str(len(stage2)))
   print("  - Number of merge conflicts:    " + str(len(conflicts)))
 
-  print("  - Number of conflict sets:      " + str(len(sets)))
+  print("  - Number of conflict sets:      " + str(len(conflictSets)))
 
   print("  - Total number of attributions: " + str(stats[0]))
 
