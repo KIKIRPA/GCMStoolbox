@@ -1,0 +1,166 @@
+-------------------------------------------------------------------------------
+NIST MSPepSearch mass spectral library search program ver. 0.96 build Fri Feb 22 13:22:10 2019
+This version matches NIST MS Search v.2.3 build May 04, 2017 (released with NIST 17 MS Librararies)
+
+Written by Dmitrii V. Tchekhovskoi and Stephen E. Stein
+Mass Spectrometry Data Center
+National Institute of Standards and Technology (NIST)
+Visit http://peptide.nist.gov or http://chemdata.nist.gov for more information,
+software, or MS libraries.
+
+Questions about integrating this software with commerical applications:
+steve.stein@nist.gov
+-------------------------------------------------------------------------------
+Portions copyright (c)1994-96 FairCom Corporation. "FairCom" and "c-tree Plus"
+  are trademarks of FairCom Corporation and are registered in the United States
+  and other countries. All Rights Reserved.
+-------------------------------------------------------------------------------
+
+This program searches for input mass spectra in up to 16 libraries using NIST MS Search algorithms.
+Options: [{sdfmk[n]}][aijnopqrvx][{uyz}][{leh[n]}[{IQSHLMPGD}] [/Z[PPM] z] [/M[PPM] m] [/ZI[PPM] zi] [/PATH path] [/LIB lib] [/WRK wrk] /INP InputFile [/OUT[TAB] OutputFile] [/HITS max_hits] [/MinMF minmf]
+
+Search Method Type Options
+
+ HiRes search type (requires {uyz}, by default z, that is, ms/ms, unless s):
+   P peptide (use peak annotations and peak weighting)- Default
+   G generic (no peak annotations or peptide peak weighting used)
+   D the score is a pure dot product
+ HiRes search options:
+   u don't match precursor m/z (this is in-source spectrum search)
+   z do match precursor m/z within precursor ion m/z uncertainty /Z[PPM] z
+     (this is an ms/ms spectrum search, default)
+   y hybrid similarity search for ms/ms spectra in ms/ms library (always uses l)
+
+ LoRes search type (incompatible with {uyz}):
+   I identity                 Q quick identity
+   S simple similarity        H hybrid similarity
+   L neutral loss similarity  M ms/ms in EI library
+
+ presearch type:
+   d standard (use pre-indexed peaks) - Default
+   f fast (use pre-indexed peaks)
+   k[n] Compare spectra with the same n first segments of InChIKey (n=1,2,3);
+        k is the same as k1; incompatible with /MatchIK and /DiffIK
+   m precursor ion m/z within precursor ion m/z uncertainty
+      - only for HiRes search {PGD}, incompatible with u, y
+   s sequential (compare to all library spectra, always assumes u for {PGD})
+
+Correspondence between MS Search and MSPepSearch presearch options
+--- MS Search ---+--- MSPepSearch ---
+All Lib. Searches|MS/MS(z)| All Other
+-----------------+--------+----------
+Presearch Default|    m   |     d
+Presearch Fast   |    f   |     f
+Presearch Off    |    s   |     s
+InChIKey         |    k1  |     k1
+
+ search options:
+   r reverse search
+   p penalize rare compounds (I in Mainlib & Replib only)
+   x do not output hit probabilities
+ HiRes search, {PGD}, options:
+   j hit reJection; Pj: reject non-peptide hits, Gj: reject peptide hits
+   a alternative peak matching in computing match factors (recommended)
+   v output Rev-Dot (reverse match factor)
+   i ignore peaks within zi or max(z,m) m/z units around precursor m/z; see /ZI, /Z, /M option
+   l e h[n] ms/ms search threshold: l Low, e mEdium, h High(default), hn (n=1..9) Higher
+ peptide HiRes search (P) scoring options:
+   o q n : o Use OMSSA score; q Q-tof; n use number of replicates
+
+ search parameters:
+   /Z[PPM] z = precursor ion m/z uncertainty, 0.00006-500 m/z units (default=1.6) or 0.015-1e5 ppm, only for {PGD}z
+   /ZI[PPM] zi = ignore precursor peak(s) uncertainty, 0-500 m/z units (default=0) or 0-1e5 ppm, only for {PGD}
+     Note: if zi=0 or not set then zi = sum of z and m uncertainties.
+   /M[PPM] m = ms peak m/z uncertainty, 0.00006-500 m/z units (default=0.6) or 0.015-1e5 ppm, only for {PGD}
+   /MzLimits  n1 n2   compare peaks with m/z between n1>=0, n2>0; default: -1 -1
+                      Meaning of negative values: let m1 and m2 be min. m/z of 2 spectra.
+                      n1=-1: min(m/z)=max(m1,m2); n1<-1: min(m/z)=median(m1,m2,-n1)
+                      n2=-1: max(m/z) is above all m/z in both spectra (default).
+   /MzMinFromSpec     n1 = min. m/z from search spectrum, n2 = -1
+   /MzMinFromPrecursorMZ  n1 = PrecursorMZ/3 from search spectrum, n2 = -1
+                          If several n1 values have been requested then the min. value is used
+   /MinInt    n       = min. peak intensity (1-999), default: 1; used if 2 or greater
+   /MwForLoss n       = mw of the unknown, for Loss, Hybrid, or MS/MS in EI lib {LHM} only
+   /MatchIK n         = 1..3: match n first segments to input spectrum InChIKey
+                        if there is no InChIKey in the input spectrum, then hits do not have InChIKey
+   /DiffIK n          = 1..3: n first segments of input spectrum InChIKey do not match lib.spec. InChIKey
+                        If there is no InChIKey in the input spectrum, then hits must have InChIKey
+   /DiffID            Do not output hits with ID = search spectrum ID
+   /DiffNISTno        Do not output hits with NIST r.n. = search spectrum NIST r.n.
+   /DiffCAS[no]       Do not output hits with CAS r.n. = search spectrum CAS r.n.
+   /MatchCharge       (m and s only) Output only hits, which have the same charge as the input spectrum.
+                      No charge in the input spectrum matches any hit charge, including missing charge.
+   /MatchPolarity     Output only hits, which have the same polarity as input spectrum.
+   /RI {nsp}[o][a][u][d][x][tNNrXX] Use of GC Retention Indices - in I,S,L,Q,H searches
+             n,s,p: selected column Type, namely, standard Non-polar, Semi-standard non-polar, Polar
+             o: column type specified in search spectrum will Override selection
+             a: use other non-polar column type if selected non-polar type data is Absent
+             u: User library spectra with unspecified column type assumed to have selected column type
+             d: Do not output RI values in the hit list
+             x: Do not use RI to penalize Match Factor
+             tNN: RI Tolerance, NN is a number in the range 1-32767
+             rXX: penalty Rate, XX is a number in the range 1-65535 or 2 capital letters: VW=Very weak(10),
+                  WK=Weak(20), AV=Average(50), ST=Strong(100), VS=Very strong(200), IN=Infinite(65535)
+          RI is used to penalize Match Factor if tNNrXX is present AND x is not present
+          Column type in output: A=Any, S=SemiStd nonpolar, N=Std nonpolar, P=Std polar, U=Unspecified
+
+Input, Output, and Other Options
+
+ /PATH  path = path to folder containing MS libraries
+ /MAIN  main = [path]name of NIST Main MS library (one or none)
+ /REPL  repl = [path]name of NIST Replicate MS library (one or none)
+ /LIB   lib  = [path]name of other MS libraries (may be more than one)
+      Total number of libraries to search is 16
+ /WRK   wrk  = full path to work folder; default = current folder
+ /INP InputFile            = input .MGF (Mascot generic) or .MSP (NIST MS)-type file
+ /OUT[TAB][{NA}] OutputFile = output text file [tab-delimited is intended for {PGD}]; [N]ew (default) [A]ppend; default = stdout
+ /OUTMGF[{NA}]   OutputFile = output MGF text file containing search spectra
+ /HITS max_hits            = max. number of output hits; default = 3; up to 100; for m, s, k presearch - up to 400
+ /MinMF minmf              = min. match factor (MF) to output
+ /RemTopHitMinMF minmf     = remove top hit if its MF is minmf or greater
+ /TIME            output to stderr each search time in seconds
+ /PROGRESS        output to stderr progress messages
+ /PWND hWnd       hexadecimal handle of a window to which will be sent registered
+                  messages "WM_MSPEPSEARCH_MSG" with WPARAM=0, LPARAM=%completion
+ /OnlyFound       do not output empty hit lists (default)
+ /OnlyNotFound    output only empty hit lists
+ /All             output all hit lists
+ /MaxNumSpec num  = max. number of spectra to input
+ /AddAS2N         add aminoacid sequence to hit name using '|' as delimiter
+Output additional columns in /OUTTAB output; * = add to /OUT output; + = always in /OUT output:
+ /COL c1[,c2][,c3]... where c# are two-letter combinations in () below, no spaces around comma
+ /OutPrecursorMZ      (pz)*  Precursor m/z (both Hit and Search spectra)
+ /OutDeltaPrecursorMZ (dz)*  Hit-Search spectrum precursor m/z difference
+ /OutPrecursorType    (tz)   precursor type (e.g. [M+H]+)
+ /OutMW               (mw)   Nominal MW
+ /OutDeltaMW          (dw)   Hit-Search spectrum nominal MW difference
+ /OutChemForm         (cf)+  chemical formula (M)
+ /OutSpecNum [num]    (sn)*  search spectrum number (starting from num)
+ /OutCAS[rn]          (cn)+  CAS registry number
+ /OutNISTrn           (nn)   NIST registry number
+ /OutNumComp          (nc)   Number of compared spectra
+ /OutInstrType        (it)   Instrument Type
+ /OutCE               (ce)   Collision Energy
+ /OutMaxScore         (xs)   add Hit list max Score to each hit line
+ /OutTFqry            (tq)   T/F-qry (peptide search P in NIST Peptide library)
+ /OutNumMP            (nm)   Number of matched peaks
+ /OutIK               (ik)   InChIKey
+ /OutEvalID           (el)   Eval Library and ID
+ /OutSrchEvalID       (eq)   Search Eval Library and ID (incompatible with qo)
+ /OutNumPk            (np)   Number of peaks
+ /OutSrchCAS[rn]      (qc)   Search spectrum CAS registry number (for input .MSP)
+ /OutSrchNISTrn       (qn)   Search spectrum NIST registry number (for input .MSP)
+ /OutSrchID           (qi)   Search spectrum ID (for input .MSP)
+ /OutSrchChemForm     (qf)   Search spectrum chemical formula (for input .MSP)
+ /OutSearchMW         (qw)   Search spectrum nominal MW (for input .MSP)
+ /OutSrchCE           (qe)   Search spectrum collisional energy (for input .MSP)
+ /OutSrchNumPk        (qp)   Number of peaks in the search spectrum
+ /OutSrchComment      (qo)   Comment from the search spectrum (for input .MSP, incompatible with eq)
+ /OutRefPeakFract     (rf)   Reference Peak Fraction in OUTTAB output
+ /OutBestHitsOnly     (bh)   Output best hits only
+ /OutPepLocalization  (pl)   Output peptide difference localization (only Py)
+ /HiPri               Elevate program execution priority from Normal to Above Normal
+ /LibInMem            Load up to 16 libraries in memory (11 for Py, Gy, Dy, Id;
+                      15 for Hd, Hf; 2 GB limit applies to 32-bit version).
+ /UseLibAlias         use library files alias.msd the same way NIST MS Search does.
+Notation: [optional], {one of}, [{optionally one of}]
