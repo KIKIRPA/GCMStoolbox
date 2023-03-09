@@ -368,31 +368,31 @@ def main():
     data["groups"][g]["spectra"] = list(data["groups"][g]["spectra"])
 
   gcmstoolbox.saveJSON(data, options.jsonout)     # backup and save json
-  print("\nFinalised. Wrote " + options.jsonout + "\n")
+  print("\nFinalised. Wrote " + options.jsonout)
 
 
   ### STATISTICS
   
   print("\nSTATISTICS")
-  print("  - Number of mass spectra:                " + str(len(data['spectra'])))
-  print("  - Number of hitlists (1):                " + str(step1_count))
-  print("  - Number of intermediary groups (2):     " + str(step2_count))
-  print("  - Number of cross-referenced groups (3): " + str(step3_count))
-  print("  - Number of final groups (4):            " + str(len(step4)))
-
-  print("  - Total number of attributions: " + str(stats[0]))
-
-  print("  - Number of hits per group:")
-  print("      - [      1] " + str(stats[1]))
-  print("      - [      2] " + str(stats[2]))
-  print("      - [      3] " + str(stats[3]))
-  print("      - [ 4 -  9] " + str(stats[4]))
-  print("      - [10 - 19] " + str(stats[5]))
-  print("      - [20 - 39] " + str(stats[6]))
-  print("      - [40 - 59] " + str(stats[7]))
-  print("      - [60 - 79] " + str(stats[8]))
-  print("      - [80 - 99] " + str(stats[9]))
-  print("      - [ >= 100] " + str(stats[10]) + "\n\n")
+  print(" - Number of mass spectra:                            " + str(len(data['spectra'])))
+  print(" - Number of hitlists (step 1):                       " + str(step1_count))
+  print(" - Number of intermediary groups (step 2):            " + str(step2_count))
+  print(" - Number of cross-referenced groups (step 3):        " + str(step3_count))
+  print(" - Number of groups after RI tolerance check (step4): " + str(len(step4)))
+  print("")
+  print(" - Total number of attributions:                      " + str(stats[0]))
+  print("")
+  print(" - Number of hits per group:")
+  print("      [      1]  ->  " + str(stats[1]) + " groups")
+  print("      [      2]  ->  " + str(stats[2]) + " groups")
+  print("      [      3]  ->  " + str(stats[3]) + " groups")
+  print("      [ 4 -  9]  ->  " + str(stats[4]) + " groups")
+  print("      [10 - 19]  ->  " + str(stats[5]) + " groups")
+  print("      [20 - 39]  ->  " + str(stats[6]) + " groups")
+  print("      [40 - 59]  ->  " + str(stats[7]) + " groups")
+  print("      [60 - 79]  ->  " + str(stats[8]) + " groups")
+  print("      [80 - 99]  ->  " + str(stats[9]) + " groups")
+  print("      [ >= 100]  ->  " + str(stats[10]) + " groups\n\n")
 
   exit()
 
