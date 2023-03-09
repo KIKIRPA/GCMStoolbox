@@ -325,10 +325,12 @@ def main():
             ri_list = []
 
             # calculate min and max RI's for this new group, used for splitting
-            # when comparing ri to min and max in each new group, we must add a very small number to the max
+            # when comparing ri to min and max in each new group, we must add a very small number to the max of the last group
             # otherwise we risk loosing the spectrum with the highest RI in the original group
             new_group_min = ri_min + n * divider
-            new_group_max = ri_min + (n + 1) * divider + 0.01
+            new_group_max = ri_min + (n + 1) * divider
+            if number_of_groups == n + 1:
+              new_group_max += 0.01
 
             # collect the spectra for the new group
             for spectrum in group_details["spectra"]:
@@ -344,6 +346,7 @@ def main():
             new_group["maxRI"] = round(max(ri_list), 1)
             new_group["deltaRI"] = abs(ri_max - ri_min)
             new_group["deltaRI_tolerance"] = ri_tolerance = abs((options.rifixed + (options.rifactor * ri_mean)) * options.tolerance)
+            new_group["splitId"] = group_id
 
             groups_to_add.append(new_group)
         
