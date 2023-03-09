@@ -156,12 +156,27 @@ def main():
         # add to hits (if the hit is accepted)
         if accept: 
           hits.append(hit)
+
+  # PROCESS LAST
+  if len(hits) > 0:
+    step1[unknown] = hits
+
+    # report stuff
+    if options.veryverbose:
+      print(f' - "{unknown}": {len(hits)} retained hits, {i-len(hits)} rejected hits:')
+      print(f'    - RI window: {round(unknownRI - window, 1)} <= RI <= {round(unknownRI + window, 1)}')
+      for hit in hits:
+        print('    - retained hit: {}'.format(hit))
+    elif options.verbose:
+      print(f' - "{unknown.split()[0]}": {len(hits)} retained hits, {i-len(hits)} rejected hits')
+    else: 
+      gcmstoolbox.printProgress(j, k)
  
 
   ### STEP 2: FIRST GROUPING
 
   # init progress bar
-  print("\n\n\nStep 2: First grouping - attributing hitlists to interim groups")
+  print("\n\nStep 2: First grouping - attributing hitlists to interim groups")
   j = 0
   step1_count = len(step1)
   if not (options.verbose or options.veryverbose) :
