@@ -96,9 +96,10 @@ def main():
 
       # store IS and count in categories
       if cat not in categories:
-        categories[cat] = OrderedDict(
-          [('sumIS', spectrumIS), ('count', 1)]
-        )
+        categories[cat] = OrderedDict([
+          ('sumIS', spectrumIS), 
+          ('count', 1)
+        ])
       else:
         categories[cat]['sumIS'] += spectrumIS
         categories[cat]['count'] += 1
