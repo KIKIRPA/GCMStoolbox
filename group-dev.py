@@ -339,16 +339,17 @@ def main():
                 new_group["spectra"].append(spectrum)
                 ri_list.append(ri)
 
-            # add statistics for the new group
-            new_group["count"] = len(new_group["spectra"])
-            new_group["meanRI"] = round(mean(ri_list), 1)
-            new_group["minRI"] = round(min(ri_list), 1)
-            new_group["maxRI"] = round(max(ri_list), 1)
-            new_group["deltaRI"] = abs(ri_max - ri_min)
-            new_group["deltaRI_tolerance"] = ri_tolerance = abs((options.rifixed + (options.rifactor * ri_mean)) * options.tolerance)
-            new_group["splitId"] = group_id
+            # add new group (if it has spectra)
+            if len(new_group["spectra"]) > 0:
+              new_group["count"] = len(new_group["spectra"])
+              new_group["meanRI"] = round(mean(ri_list), 1)
+              new_group["minRI"] = round(min(ri_list), 1)
+              new_group["maxRI"] = round(max(ri_list), 1)
+              new_group["deltaRI"] = abs(ri_max - ri_min)
+              new_group["deltaRI_tolerance"] = ri_tolerance = abs((options.rifixed + (options.rifactor * ri_mean)) * options.tolerance)
+              new_group["splitId"] = group_id
 
-            groups_to_add.append(new_group)
+              groups_to_add.append(new_group)
         
       # if we haven't split the group (no RI-checking, missing RIs or not split)
       if len(groups_to_add) == 0:
