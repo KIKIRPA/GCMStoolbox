@@ -135,9 +135,9 @@ def main():
       fn = mspfile
     else:
       fbase, fext = os.path.splitext(mspfile)
-      fn = f"{fbase}{i : 03d}{fext}"
+      fn = f"{fbase}{i:03d}{fext}"
     with open(fn, "w") as fh:
-      for n in range(loop_count - 1):
+      for n in range(loop_count):
         if len(splist) != 0:
           (name, spectrum) = splist.popitem()
           writespectrum(fh, mspfile, name, spectrum, options.verbose)
