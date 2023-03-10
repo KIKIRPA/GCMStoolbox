@@ -3,9 +3,7 @@
 
 import sys
 import os
-from collections import OrderedDict
-from glob import glob
-from optparse import OptionParser, OptionGroup
+from optparse import OptionParser
 import gcmstoolbox
 
 
@@ -32,6 +30,7 @@ def main():
   parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   parser.add_option("-m", "--mode",    help="Mode: auto|spectra|group|components [default:auto]", action="store", dest="mode", type="string", default="auto")
   parser.add_option("-g", "--group",   help="Group numbers to export in group mode; multiple instances can be defined", action="append", dest="group", type="string")
+  parser.add_option("-s", "--split",   help="Split output on maximum number of spectra", action="store", dest="split", type="int", default=0)
   
   (options, args) = parser.parse_args()
 
@@ -96,7 +95,7 @@ def main():
   print("\nProcessing mass spectra")
   
   # make list of spectra to be added
-  splist = OrderedDict()
+  splist = dict()
   if (mode == "spectra") or (mode == "components"):
     splist = data[mode]
   elif mode == "group":
@@ -114,23 +113,40 @@ def main():
       else:
         print(" !! G" + str(g) + " was not found.")
   
+  # reverse order of splist dict
+  splist = dict(reversed(list(splist.items())))
 
-  with open(mspfile, "w") as fh:
-    # init progress bar
-    if not options.verbose: 
-      j = 0
-      k = len(splist)
-      gcmstoolbox.printProgress(j, k)
-    
-    for name, spectrum in splist.items():
-      writespectrum(fh, mspfile, name, spectrum, options.verbose)
-    
-      # adjust progress bar
-      if not options.verbose: 
-        j += 1
-        gcmstoolbox.printProgress(j, k)
+  # init progress bar
+  if not options.verbose: 
+    j = 0
+    k = len(splist)
+    gcmstoolbox.printProgress(j, k)
+  
+  if options.split <= 0:
+    loop_count = len(splist)
+  else:
+    loop_count = options.split
 
-  print("\n => Wrote {}\n".format(mspfile))
+  # write file(s)
+  i = 0
+  while len(splist) != 0:
+    i += 1
+    if options.split <= 0:
+      fn = mspfile
+    else:
+      fbase, fext = os.path.splitext(mspfile)
+      fn = f"{fbase}{i : 03d}{fext}"
+    with open(fn, "w") as fh:
+      for n in range(loop_count - 1):
+        if len(splist) != 0:
+          (name, spectrum) = splist.popitem()
+          writespectrum(fh, mspfile, name, spectrum, options.verbose)
+        
+          # adjust progress bar
+          if not options.verbose: 
+            j += 1
+            gcmstoolbox.printProgress(j, k)
+    print("\n => Wrote {}\n".format(fn))
 
 
   ### TRACE IN JSON FILE
@@ -141,7 +157,6 @@ def main():
   gcmstoolbox.saveJSON(data, options.jsonout)     # backup and safe json
    
   exit()
-    
   
   
   

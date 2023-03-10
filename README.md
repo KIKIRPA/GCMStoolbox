@@ -4,7 +4,7 @@ Tools for data analysis on GC-MS datafiles
 
 ## Prerequisites
 
-Python v3.x
+Python v3.8 or higher
 
 
 ## import.py: import one or more AMDIS (.elu, .msl, .csl, .isl) and NIST MS SEARCH (.msp) files and store the mass spectra in GCMStoolbox JSON format
