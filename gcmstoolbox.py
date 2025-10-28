@@ -129,7 +129,7 @@ def sumspectrum(*spectra, signal="IS", highest=False):
   spectra3 = {}
   if highest:
     signals = sorted(signals, reverse=True)
-    limit = signals[((highest-1) if len(signal) >= highest else (len(signal) - 1))]
+    limit = signals[((highest-1) if len(signals) >= highest else (len(signals) - 1))]
     for si, sp in spectra2.items():
       if si >= limit:
         spectra3[si] = sp
@@ -156,18 +156,11 @@ def sumspectrum(*spectra, signal="IS", highest=False):
   # normalise to 999
   normalise(xysum)
   
-  # average RI
+  # average and delta RI (only if available)
+  sp = OrderedDict()
   if len(rilist) > 0:
     ri = sum(rilist) / float(len(rilist))
-  else:
-    ri = 0
-    
-  # delta RI
-  d = max(rilist) -  min(rilist)
-    
-  # output a very basic spectrum: RI (if available), numpeaks and xydata
-  sp = OrderedDict()
-  if ri != 0:
+    d = max(rilist) - min(rilist)
     sp['RI'] = str(round(ri,1))
     sp['dRI'] = str(round(d,1))
   sp['Num Peaks'] = len(xysum)

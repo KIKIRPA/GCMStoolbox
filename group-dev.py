@@ -6,6 +6,7 @@ import os
 from collections import OrderedDict
 from optparse import OptionParser, OptionGroup
 from statistics import mean
+import re
 import gcmstoolbox
 
 
@@ -91,7 +92,7 @@ def main():
   # read MSPEPSEARCH file line by line, and apply grouping criteria
   hits = []
   step1 = dict()
-  with open(inFile,'r') as fh:
+  with open(inFile,'r', encoding='utf-8', errors='replace') as fh:
     for line in fh:
 
       if line.casefold().startswith('unknown'):
@@ -128,16 +129,30 @@ def main():
       elif line.casefold().startswith('hit'):
         i += 1
 
-        # dissect the "hit" line
-        line = line.split(": ", 1)[1]
-        parts = line.split(">>; ")     # the possibility of having semicolons inside the sample name makes this more complex
-        hit = parts[0].replace("<<", "").strip()
+        # dissect the "hit" line (robust parsing)
+        try:
+          payload = line.split(": ", 1)[1]
+        except Exception:
+          if options.verbose or options.veryverbose:
+            print(f'   - WARNING: could not parse hit line: "{line.strip()}"')
+          continue
+
+        # extract hit name between <<...>> if present; else fallback
+        m = re.search(r"<<\s*(.*?)\s*>>", payload)
+        if m:
+          hit = m.group(1).strip()
+        else:
+          parts = payload.split(">>; ")
+          hit = parts[0].replace("<<", "").strip() if len(parts) > 0 else payload.strip()
         
+        # extract MF and RMF with regex; default to 0 if not found
+        mf_match = re.search(r"\bMF:\s*(\d+)", payload)
+        rmf_match = re.search(r"\bRMF:\s*(\d+)", payload)
+        hitMF = int(mf_match.group(1)) if mf_match else 0
+        hitRMF = int(rmf_match.group(1)) if rmf_match else 0
+
         # extract RI, match and reverse match
         hitRI = getRI(hit, data['spectra']) if (window != 0) else 0
-        hitMF, hitRMF, temp = parts[2].split("; ", 2)
-        hitMF = int(hitMF.replace("MF: ", "").strip())
-        hitRMF = int(hitRMF.replace("RMF: ", "").strip())
         
         # RI selection: accept if
         # - RIwindow is given and both RI's are present: accept hit when RI falls within the window
@@ -290,7 +305,7 @@ def main():
 
     # get list of RIs from the group
     for spectrum in group_details["spectra"]:
-      ri = getRI(spectrum, data['spectra']) if (window != 0) else 0
+      ri = getRI(spectrum, data['spectra']) if ((options.rifixed != 0) or (options.rifactor != 0)) else 0
       if (ri != 0):
         ri_list.append(ri)
     
@@ -342,11 +357,14 @@ def main():
             # add new group (if it has spectra)
             if len(new_group["spectra"]) > 0:
               new_group["count"] = len(new_group["spectra"])
-              new_group["meanRI"] = round(mean(ri_list), 1)
-              new_group["minRI"] = round(min(ri_list), 1)
-              new_group["maxRI"] = round(max(ri_list), 1)
-              new_group["deltaRI"] = abs(ri_max - ri_min)
-              new_group["deltaRI_tolerance"] = ri_tolerance = abs((options.rifixed + (options.rifactor * ri_mean)) * options.tolerance)
+              sub_mean = round(mean(ri_list), 1)
+              sub_min = round(min(ri_list), 1)
+              sub_max = round(max(ri_list), 1)
+              new_group["meanRI"] = sub_mean
+              new_group["minRI"] = sub_min
+              new_group["maxRI"] = sub_max
+              new_group["deltaRI"] = abs(sub_max - sub_min)
+              new_group["deltaRI_tolerance"] = abs((options.rifixed + (options.rifactor * sub_mean)) * options.tolerance)
               new_group["splitId"] = group_id
 
               groups_to_add.append(new_group)
@@ -356,15 +374,21 @@ def main():
         i += 1
         step4[f"G{str(i)}"] = group_details
         if options.verbose or options.veryverbose:
-          print(f' - "G{str(i)}": based on cross-referenced group {str(group_id)} (RI delta: {str(group_details["deltaRI"])}, RI tolerance: {str(group_details["deltaRI_tolerance"])})')
+          delta = group_details.get("deltaRI", "n/a")
+          tol = group_details.get("deltaRI_tolerance", "n/a")
+          print(f' - "G{str(i)}": based on cross-referenced group {str(group_id)} (RI delta: {delta}, RI tolerance: {tol})')
       else:
         if options.verbose or options.veryverbose:
-            print(f' - SPLIT cross-referenced group {str(group_id)} (RI delta: {str(group_details["deltaRI"])}, RI tolerance: {str(group_details["deltaRI_tolerance"])})')
+            delta = group_details.get("deltaRI", "n/a")
+            tol = group_details.get("deltaRI_tolerance", "n/a")
+            print(f' - SPLIT cross-referenced group {str(group_id)} (RI delta: {delta}, RI tolerance: {tol})')
         for g in groups_to_add:
           i += 1
           step4[f"G{str(i)}"] = g
           if options.veryverbose:
-            print(f'   - "G{str(i)}": based on cross-referenced group {str(group_id)} (RI delta: {str(g["deltaRI"])}, RI tolerance: {str(g["deltaRI_tolerance"])}')
+            delta_g = g.get("deltaRI", "n/a")
+            tol_g = g.get("deltaRI_tolerance", "n/a")
+            print(f'   - "G{str(i)}": based on cross-referenced group {str(group_id)} (RI delta: {delta_g}, RI tolerance: {tol_g})')
 
     # report progress
     if not options.verbose and not options.veryverbose: 
@@ -395,7 +419,7 @@ def main():
   print("\nSTATISTICS")
   print(" - Number of mass spectra:                            " + str(len(data['spectra'])))
   print(" - Number of hitlists (step 1):                       " + str(step1_count))
-  print(" - Number of intermediary groups (step 2):            " + str(step2_count))
+  print(" - Number of spectra with interim group assignments (step 2): " + str(step2_count))
   print(" - Number of cross-referenced groups (step 3):        " + str(step3_count))
   print(" - Number of groups after RI tolerance check (step4): " + str(len(step4)))
   print("")
@@ -424,9 +448,10 @@ def getRI(s, spectra):
     else:
       return 0
   
-  #if the spectrum doesn't exist: ERROR
+  #if the spectrum doesn't exist: ERROR (fail-fast)
   else:
     print("\n!! FATAL ERROR: spectrum " + s + " was not found in the GCMStoolbox JSON data file.\n")
+    raise SystemExit(1)
 
 
 

@@ -29,7 +29,7 @@ def main():
   parser.add_option("-i", "--jsonin",  help="JSON input file name [default: gcmstoolbox.json]", action="store", dest="jsonin", type="string", default="gcmstoolbox.json")
   parser.add_option("-o", "--jsonout", help="JSON output file name [default: same as JSON input file]", action="store", dest="jsonout", type="string")
   parser.add_option("-m", "--mode",    help="Mode: auto|spectra|group|components [default:auto]", action="store", dest="mode", type="string", default="auto")
-  parser.add_option("-g", "--group",   help="Group numbers to export in group mode; multiple instances can be defined", action="append", dest="group", type="string")
+  parser.add_option("-g", "--group",   help="Group numbers to export in group mode; multiple instances can be defined", action="append", dest="group", type="string", default=[])
   parser.add_option("-s", "--split",   help="Split output on maximum number of spectra", action="store", dest="split", type="int", default=0)
   
   (options, args) = parser.parse_args()
@@ -164,25 +164,26 @@ def writespectrum(fh, fn, name, sp, verbose = False):
   # write the spectrum to the file handle line by line in NIST MSP format
   # don't mind to much about the order of the lines; we start with Name, and end with NumPeaks and the spectral data
 
-  # build comments, while removing fields that don't belong in the msp
+  # build comments, without mutating sp during iteration
   comments = ""
   items = ['Sample', 'Resin', 'AAdays', 'Color', 'PyTemp', 'OR', 'IS', 'RA', 'SN', 'dRI']
   for item in items:
-    val = sp.pop(item, False)
-    if isinstance(val, list):
-      val=";".join(val)
-    if val:
-      comments += "{}={} ".format(item, val.replace(" ", "_"))
+    if item in sp:
+      val = sp[item]
+      if isinstance(val, list):
+        val = ";".join(val)
+      if val:
+        comments += "{}={} ".format(item, str(val).replace(" ", "_"))
   if "RI" in sp:
     comments += "RI={} ".format(sp['RI'])
   if "RT" in sp:
     comments += "RT={}".format(sp['RT'])
 
   # remove other fields
-  numpeaks = sp.pop('Num Peaks')
-  xydata   = sp.pop('xydata')
-  compospectra = sp.pop('Spectra', None)
-  composamples = sp.pop('Samples', None)
+  numpeaks = sp.get('Num Peaks')
+  xydata   = sp.get('xydata')
+  compospectra = sp.get('Spectra')
+  composamples = sp.get('Samples')
   
   #verbose
   if verbose:
@@ -201,13 +202,16 @@ def writespectrum(fh, fn, name, sp, verbose = False):
     casno += "-" + name.split(" ", 1)[0]
     fh.write('CAS#: ' + casno + "\n")
   
-  #then iterate over the remaining items
-  for key, value in sp.items():
-    # if we still have lists (eg. multiple sources, remove them)
-    if isinstance(value, list): 
-      sp.pop(key)
+  # then iterate over a copy of remaining items and write, skipping ones we handle elsewhere
+  skip_keys = set(['Num Peaks', 'xydata', 'Spectra', 'Samples', 'Name'])
+  for key, value in list(sp.items()):
+    if key in skip_keys:
+      continue
+    if isinstance(value, list):
+      # write a compact string representation
+      fh.write(key + ': ' + ";".join(str(v) for v in value) + "\n")
     else:
-      fh.write(key + ': ' + value + "\n")
+      fh.write(key + ': ' + str(value) + "\n")
     
   # make sure we'll have a source
   if 'SOURCE' not in sp:
@@ -219,22 +223,24 @@ def writespectrum(fh, fn, name, sp, verbose = False):
   # write NumPeaks
   fh.write('Num Peaks: ' + str(numpeaks) + "\n")
   
-  # NIST MSP puts 5 couples on each line
-  # 1. iterate over full lines
-  div = numpeaks // 5          # we have %div full lines
-  for i in range(div):         
-    line = ""  
-    for j in range(5): 
-      x, y = xydata.popitem(last = False)
-      line = line + str(x) + " " + str(y) + "; "
+  # NIST MSP puts 5 couples on each line; iterate without mutating original dict
+  xy_items = list(xydata.items())
+  div = numpeaks // 5
+  idx = 0
+  for i in range(div):
+    line = ""
+    for j in range(5):
+      x, y = xy_items[idx]
+      idx += 1
+      line += str(x) + " " + str(y) + "; "
     fh.write(line.rstrip(" ") + "\n")
-  # 2. iterate over the last incomplete line
-  mod = numpeaks % 5           # the last line will have mod couples
+  mod = numpeaks % 5
   if mod > 0:
     line = ""
     for i in range(mod):
-      x, y = xydata.popitem(last = False)
-      line = line + str(x) + " " + str(y) + "; "
+      x, y = xy_items[idx]
+      idx += 1
+      line += str(x) + " " + str(y) + "; "
     fh.write(line.rstrip(" ") + "\n")
   fh.write("\n")
 
