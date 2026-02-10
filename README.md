@@ -4,7 +4,7 @@ Tools for data analysis on GC-MS datafiles
 
 ## Prerequisites
 
-Python v3.x
+Python v3.8 or higher
 
 
 ## import.py: import one or more AMDIS (.elu, .msl, .csl, .isl) and NIST MS SEARCH (.msp) files and store the mass spectra in GCMStoolbox JSON format
@@ -12,7 +12,7 @@ Python v3.x
 ```
 *******************************************************************************
 * GCMStoolbox - a set of tools for GC-MS data analysis                        *
-*   Version: 4.0    (21 Jan 2020)                                             *
+*   Version: 5.0    (10 Feb 2026)                                             *
 *   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *
 *   Licence: GNU GPL version 3                                                *
 *                                                                             *
@@ -54,7 +54,7 @@ Options:
 ```
 *******************************************************************************
 * GCMStoolbox - a set of tools for GC-MS data analysis                        *
-*   Version: 4.0    (21 Jan 2020)                                             *
+*   Version: 5.0    (10 Feb 2026)                                             *
 *   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *
 *   Licence: GNU GPL version 3                                                *
 *                                                                             *
@@ -78,6 +78,8 @@ Options:
   -g GROUP, --group=GROUP
                         Group numbers to export in group mode; multiple
                         instances can be defined
+  -s SPLIT, --split=SPLIT
+                        Split output on maximum number of spectra
 ```
 
 
@@ -86,7 +88,7 @@ Options:
 ```
 *******************************************************************************
 * GCMStoolbox - a set of tools for GC-MS data analysis                        *
-*   Version: 4.0    (21 Jan 2020)                                             *
+*   Version: 5.0    (10 Feb 2026)                                             *
 *   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *
 *   Licence: GNU GPL version 3                                                *
 *                                                                             *
@@ -100,7 +102,10 @@ Usage: group.py [options] MSPEPSEARCH_FILE
 Options:
   --version             show program's version number and exit
   -h, --help            show this help message and exit
-  -v, --verbose         Be very verbose
+  -v, --verbose         Be verbose
+  -w, --veryverbose     Be insanely verbose
+  -C, --conflictfiles   Create debug files of conflicting groups at each
+                        grouping stage
   -i JSONIN, --jsonin=JSONIN
                         JSON input file name [default: gcmstoolbox.json]
   -o JSONOUT, --jsonout=JSONOUT
@@ -118,6 +123,9 @@ Options:
     -R RIFACTOR, --rifactor=RIFACTOR
                         Apply an RI window with RI-dependent factor [default:
                         0]
+    -t TOLERANCE, --tolerance=TOLERANCE
+                        Allow an RI spread tolerance factor after merging
+                        groups [default: 1.5]
     -D, --discard       Discard hits without RI
 
   NIST MS SEARCH GROUPING CRITERIUM:
@@ -129,13 +137,6 @@ Options:
                         Apply NIST MS match limit [default: 0]
     -n MINRMF, --reverse=MINRMF
                         Apply NIST MS reverse match limit [default: 0]
-
-  AMBIGUOUS MATCHES:
-    Sometimes a spectrum is matched against a series of spectra that are
-    allocated to two or more different groups. By default, these groups
-    are not merged.
-
-    -M, --merge         Merge groups with ambiguous matches
 ```
 
 
@@ -144,7 +145,7 @@ Options:
 ```
 *******************************************************************************
 * GCMStoolbox - a set of tools for GC-MS data analysis                        *
-*   Version: 4.0    (21 Jan 2020)                                             *
+*   Version: 5.0    (10 Feb 2026)                                             *
 *   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *
 *   Licence: GNU GPL version 3                                                *
 *                                                                             *
@@ -153,7 +154,7 @@ Options:
 *                                                                             *
 *******************************************************************************
 
-Usage:
+Usage: 
 
 Commands:
   list    Overview of defined filters
@@ -200,7 +201,7 @@ Options:
 ```
 *******************************************************************************
 * GCMStoolbox - a set of tools for GC-MS data analysis                        *
-*   Version: 4.0    (21 Jan 2020)                                             *
+*   Version: 5.0    (10 Feb 2026)                                             *
 *   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *
 *   Licence: GNU GPL version 3                                                *
 *                                                                             *
@@ -232,7 +233,7 @@ Options:
 ```
 *******************************************************************************
 * GCMStoolbox - a set of tools for GC-MS data analysis                        *
-*   Version: 4.0    (21 Jan 2020)                                             *
+*   Version: 5.0    (10 Feb 2026)                                             *
 *   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *
 *   Licence: GNU GPL version 3                                                *
 *                                                                             *
@@ -263,7 +264,7 @@ Options:
 ```
 *******************************************************************************
 * GCMStoolbox - a set of tools for GC-MS data analysis                        *
-*   Version: 4.0    (21 Jan 2020)                                             *
+*   Version: 5.0    (10 Feb 2026)                                             *
 *   Author:  Wim Fremout, Royal Institute for Cultural Heritage               *
 *   Licence: GNU GPL version 3                                                *
 *                                                                             *

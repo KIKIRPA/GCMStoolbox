@@ -161,7 +161,7 @@ def main():
     # adjust progress bar
     if not options.verbose: 
       j += 1
-      gcmstoolbox.printProgress(j, k)      
+      gcmstoolbox.printProgress(j, k)
         
         
   ### WRITE SPECTRA JSON 

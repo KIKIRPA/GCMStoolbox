@@ -177,7 +177,7 @@ def main():
     for c in list(candidates):   # iterate over a copy of the set, so we can remove things from the original while iterating
       if not options.sourcecount:
         # count number of spectra
-        if data["groups"][c]["count"] >= options.count:  #remove from candidates = keep group
+        if len(data["groups"][c]["spectra"]) >= options.count:  #remove from candidates = keep group
           candidates.discard(c)
       else:
         # count number of sources
